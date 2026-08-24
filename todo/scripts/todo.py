@@ -36,7 +36,7 @@ def find_items(lines: list[str]) -> list[tuple[int, str, bool, str]]:
     """Returns (line_index, bullet_char, checked, text) for every checklist line, in file order."""
     items = []
     for i, line in enumerate(lines):
-        m = ITEM_RE.match(line.rstrip("\n"))
+        m = ITEM_RE.match(line.rstrip("\r\n"))
         if m:
             items.append((i, m.group(1), m.group(2).lower() == "x", m.group(3)))
     return items
