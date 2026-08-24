@@ -77,6 +77,13 @@ notion of Jira. Report the created PR's URL once it exists.
 
 ### 7. Close the loop
 
+`subagent-driven-development`'s setup step works in a git worktree, and choosing "2. Push and
+create a Pull Request" in step 6 leaves you there rather than returning to the main checkout — so
+run `todo done` from the **main repo checkout's working directory, not the worktree**. `todo`
+resolves TODO.md via `git rev-parse --show-toplevel` from wherever it's invoked, and a worktree has
+its own toplevel; running it from inside the worktree would flip the checkbox in a copy of TODO.md
+that never makes it back to the branch this pipeline started from.
+
 `todo done <n> <PR-URL>` — the TODO.md item now points at the shipped (draft) PR. The Jira issue
 itself is reachable from the PR body and from the plan's spec file, so one link in TODO.md is
 enough; don't also try to record the Jira link here.
