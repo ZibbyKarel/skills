@@ -1,6 +1,7 @@
 ---
 name: todo
 description: "Manage a project's TODO.md checklist — add an item, list items, mark one done or undone, or find the next pending one. Use this whenever the user wants to track personal backlog items for the current project, whether they type an explicit /todo command or just say something like 'add this to my todo list', 'what's on my todo', 'what should I work on next', or 'mark item 3 as done' — they don't need to say 'TODO.md' or name the file explicitly. This is a personal, cross-project tool — it always operates on the TODO.md at the root of whatever git repo the user is currently in, creating the file the first time it's needed."
+argument-hint: "add \"<text>\" | list | next | show <n> | done <n> [ref] | undone <n>"
 ---
 
 # todo

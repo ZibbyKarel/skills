@@ -1,6 +1,7 @@
 ---
 name: create-jira-issue
 description: "Turn any input — a TODO.md line, a bug report, a Slack message, a vague one-liner — into a well-researched Jira issue in the current project's board. Reads the target board/site/issue-type/labels from a '## Jira' section in this repo's README.md, researches the actual codebase for relevant files and functions to ground the description in fact rather than restating the input, checks for likely duplicates before creating, and reports back the created issue's key and URL. Use this whenever the user asks to file/create/open a Jira issue or ticket for something, not only when working through a TODO.md — it accepts anything describing a piece of work."
+argument-hint: "<description of the work to file as a Jira issue>"
 ---
 
 # create-jira-issue

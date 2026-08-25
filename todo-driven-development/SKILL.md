@@ -1,6 +1,7 @@
 ---
 name: todo-driven-development
 description: "Drive a project's TODO.md items all the way from backlog to a draft PR — file a researched Jira issue, write and confirm an implementation plan, execute it with subagent-driven development, and open the resulting draft PR linked back to the issue. Use this when the user wants to work through their TODO.md, either one specific item ('process item 3', 'work on the flaky-test todo') or the whole backlog ('go through my todo list', 'process everything in TODO.md'). This is a thin conductor over three other skills — todo, create-jira-issue, and the superpowers plugin — not a reimplementation of any of them."
+argument-hint: "<item-number> | all"
 ---
 
 # todo-driven-development
