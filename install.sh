@@ -2,6 +2,11 @@
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -z "$REPO_ROOT" ] || [ ! -f "$REPO_ROOT/.claude-plugin/marketplace.json" ]; then
+  echo "install.sh: could not resolve this repo's root (got '$REPO_ROOT') — refusing to run," >&2
+  echo "  since the legacy-symlink cleanup below trusts REPO_ROOT to scope what it deletes." >&2
+  exit 1
+fi
 MARKETPLACE="zibby-skills"
 PLUGIN="zibby"
 SKILLS_DIR="$HOME/.claude/skills"
@@ -14,7 +19,12 @@ SKIP_MCP=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --scope) SCOPE="${2:-}"; shift 2 ;;
+    --scope)
+      if [ $# -lt 2 ]; then
+        echo "--scope requires a value: user, project, or local" >&2
+        exit 1
+      fi
+      SCOPE="$2"; shift 2 ;;
     --yes|-y) ASSUME_YES=1; shift ;;
     --doctor-only) DOCTOR_ONLY=1; shift ;;
     --skip-mcp-check) SKIP_MCP=1; shift ;;
@@ -92,6 +102,16 @@ if [ "$DOCTOR_ONLY" -eq 1 ]; then
   exit 0
 fi
 
+# Fail before touching anything — not after registering the marketplace or
+# deleting symlinks — if we have no scope and no way to ask for one. This
+# has to be decidable from the flags alone, so it belongs before any of the
+# mutations below rather than down in the "pick scope" step.
+if [ -z "$SCOPE" ] && [ ! -t 0 ]; then
+  bad "no --scope given and stdin is not a terminal to prompt on"
+  bad "pass --scope user|project|local explicitly"
+  exit 1
+fi
+
 # ------------------------------------------------- legacy symlink cleanup
 stale=()
 for name in "${LEGACY_LINKS[@]}"; do
@@ -119,7 +139,14 @@ if [ "${#stale[@]}" -gt 0 ]; then
   fi
   case "$reply" in
     y|Y|yes)
-      for link in "${stale[@]}"; do rm "$link" && ok "removed $link"; done ;;
+      for link in "${stale[@]}"; do
+        if rm "$link"; then
+          ok "removed $link"
+        else
+          bad "failed to remove $link — aborting rather than risk installing a conflicting copy"
+          exit 1
+        fi
+      done ;;
     *)
       bad "Declined. Refusing to install a conflicting copy."
       exit 1 ;;
@@ -141,6 +168,8 @@ else
 fi
 
 # ------------------------------------------------------------ pick scope
+# Reaching here with SCOPE unset means stdin is a terminal — the
+# non-interactive case already exited earlier, before any mutation.
 if [ -z "$SCOPE" ]; then
   say ""
   say "Install scope:"

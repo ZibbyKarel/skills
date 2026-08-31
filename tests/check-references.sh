@@ -2,7 +2,7 @@
 # Fails if any skill still refers to a sibling by its pre-marketplace name,
 # or if the todo script path is not plugin-relative.
 set -uo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 fail=0
 
 check_absent() {
