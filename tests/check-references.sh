@@ -35,6 +35,7 @@ check_present '^name: todo$'                    skills/todo/SKILL.md            
 check_present '^name: todo-driven-development$' skills/todo-driven-development/SKILL.md 'tdd skill name intact'
 check_present 'CLAUDE_PLUGIN_ROOT'              skills/todo/SKILL.md                    'todo script path is plugin-relative'
 check_present 'zibby:jira'                      skills/todo-driven-development/SKILL.md 'tdd points at zibby:jira'
+check_present 'zibby:todo'                      skills/todo-driven-development/SKILL.md 'tdd points at zibby:todo'
 check_present 'zibby:todo-driven-development'   skills/jira/SKILL.md                    'jira points at zibby:todo-driven-development'
 
 exit $fail
