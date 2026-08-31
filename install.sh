@@ -155,7 +155,7 @@ fi
 
 # -------------------------------------------------- register marketplace
 say ""
-if claude plugin marketplace list 2>/dev/null | grep -qw "$MARKETPLACE"; then
+if claude plugin marketplace list 2>/dev/null | grep -qE "(^|[[:space:]])${MARKETPLACE}\$"; then
   ok "marketplace $MARKETPLACE already registered"
 else
   say "Registering marketplace ${MARKETPLACE}…"

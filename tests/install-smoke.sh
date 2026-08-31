@@ -17,7 +17,7 @@ fail=0
 # Never tear down a registration that was already there — after the real
 # migration, zibby-skills is the source of the user's installed plugin.
 PRE_REGISTERED=0
-if claude plugin marketplace list 2>/dev/null | grep -qw zibby-skills; then
+if claude plugin marketplace list 2>/dev/null | grep -qE '(^|[[:space:]])zibby-skills$'; then
   PRE_REGISTERED=1
 fi
 

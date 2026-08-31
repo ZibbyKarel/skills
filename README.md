@@ -20,8 +20,9 @@ cd zibby-skills
 ./install.sh
 ```
 
-`install.sh` checks prerequisites, clears any conflicting `~/.claude/skills` symlinks from the
-pre-marketplace layout, registers the marketplace and installs at the scope you choose. Run bare
+`install.sh` checks prerequisites, offers to remove any conflicting `~/.claude/skills` symlinks from
+the pre-marketplace layout (aborting if you decline), registers the marketplace and installs at the
+scope you choose. Run bare
 in a terminal, it prompts for the scope; run with stdin that isn't a terminal (CI, a piped
 invocation), it has no way to prompt and exits 1 telling you to pass `--scope` explicitly.
 
