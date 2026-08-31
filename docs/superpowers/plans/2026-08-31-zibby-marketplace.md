@@ -100,7 +100,7 @@ Create `.claude-plugin/plugin.json`:
     "name": "Karel Zíbar",
     "email": "karel.zibar@team.blue"
   },
-  "homepage": "https://github.com/zibar/zibby-skills",
+  "homepage": "https://github.com/ZibbyKarel/skills",
   "license": "MIT",
   "keywords": ["todo", "jira", "workflow", "productivity"],
   "dependencies": ["superpowers@claude-plugins-official"]
@@ -215,7 +215,7 @@ In `skills/jira/SKILL.md`, set line 2 to `name: jira` and replace the line 3 des
 description: "Create a Jira issue in the current project's board from any input — a TODO.md line, a bug report, a Slack message, a vague one-liner. Reads the target board/site/issue-type/labels from a '## Jira' section in this repo's README.md, researches the actual codebase for relevant files and functions to ground the description in fact rather than restating the input, checks for likely duplicates before creating, and reports back the created issue's key and URL. Use this whenever the user asks to file/create/open a Jira issue or ticket for something, not only when working through a TODO.md — it accepts anything describing a piece of work."
 ```
 
-Leave the `# create-jira-issue` H1 heading as `# jira`.
+Change the `# create-jira-issue` H1 heading to `# jira`. (`tests/check-references.sh` enforces this — the bare-name pattern matches the heading too.)
 
 - [ ] **Step 4: Repoint the sibling references in the Jira skill**
 
@@ -305,6 +305,13 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 fail=0
 
+# Never tear down a registration that was already there — after the real
+# migration, zibby-skills is the source of the user's installed plugin.
+PRE_REGISTERED=0
+if claude plugin marketplace list 2>/dev/null | grep -qw zibby-skills; then
+  PRE_REGISTERED=1
+fi
+
 echo "== doctor-only runs and exits 0 or 1, never crashes =="
 "$REPO/install.sh" --doctor-only --skip-mcp-check >"$TMP/doctor.log" 2>&1
 rc=$?
@@ -324,8 +331,14 @@ else
 fi
 
 echo "== cleanup =="
+# Scoped to the throwaway project, so a user-scope install is untouched.
 ( cd "$TMP/proj" && claude plugin uninstall zibby@zibby-skills --scope project --prune -y ) >/dev/null 2>&1
-claude plugin marketplace remove zibby-skills >/dev/null 2>&1
+if [ "$PRE_REGISTERED" -eq 0 ]; then
+  claude plugin marketplace remove zibby-skills >/dev/null 2>&1
+  echo "ok:   marketplace unregistered (this run added it)"
+else
+  echo "ok:   marketplace left registered (it predates this run)"
+fi
 
 exit $fail
 ```
@@ -471,7 +484,7 @@ fi
 
 # -------------------------------------------------- register marketplace
 say ""
-if claude plugin marketplace list 2>/dev/null | grep -q "^  ❯ $MARKETPLACE$"; then
+if claude plugin marketplace list 2>/dev/null | grep -qw "$MARKETPLACE"; then
   ok "marketplace $MARKETPLACE already registered"
 else
   say "Registering marketplace $MARKETPLACE…"
@@ -592,7 +605,7 @@ both others.
 ## Install
 
 ```bash
-git clone https://github.com/zibar/zibby-skills.git
+git clone git@github.com:ZibbyKarel/skills.git zibby-skills
 cd zibby-skills
 ./install.sh
 ```
@@ -610,7 +623,7 @@ Non-interactive:
 Or skip the script entirely:
 
 ```bash
-claude plugin marketplace add zibar/zibby-skills
+claude plugin marketplace add ZibbyKarel/skills
 claude plugin install zibby@zibby-skills --scope user
 ```
 
@@ -693,6 +706,13 @@ The symlinks in `~/.claude/skills/` point at directories that stopped existing i
 **Interfaces:**
 - Consumes: `install.sh` from Task 3.
 
+> **Run this task from the main checkout at `/Users/zibar/Workspace/zibby-skills`, after the
+> branch has been merged — never from a git worktree.** `install.sh` registers the marketplace
+> at whatever directory it lives in, and a directory-source marketplace stores that live path
+> (see the `shoptet-skills` entry in `~/.claude/plugins/known_marketplaces.json`). Registering
+> from a worktree points the user's permanent install at a directory that disappears on cleanup,
+> which breaks the plugin silently. This is the same failure mode as commit `2d07dce`.
+
 - [ ] **Step 1: Confirm the symlinks are currently broken**
 
 ```bash
@@ -706,7 +726,10 @@ Expected: all three report `BROKEN`. That is the state Task 1 created and this t
 
 - [ ] **Step 2: Run the installer at user scope**
 
+From the main checkout, on the merged branch:
+
 ```bash
+cd /Users/zibar/Workspace/zibby-skills
 ./install.sh --scope user
 ```
 
@@ -758,5 +781,10 @@ No gaps.
 **Placeholder scan:** every step carries the literal file content or command. No "TBD", no "handle edge cases", no "similar to Task N".
 
 **Type consistency:** `zibby-skills` (marketplace), `zibby` (plugin), and skills `todo` / `jira` / `todo-driven-development` are spelled identically in the manifests, both test scripts, `install.sh`, the README and Task 5's verification commands. `CLAUDE_PLUGIN_ROOT` is used only in `skills/todo/SKILL.md`, asserted by `tests/check-references.sh`.
+
+**Two guards worth not losing in edit:** `tests/install-smoke.sh` only unregisters the
+marketplace it registered itself — after Task 5 the user's real install depends on that
+registration, and the README tells them to run the smoke test routinely. And Task 5 runs from the
+main checkout, because a directory-source marketplace records the live path it was added from.
 
 **One risk carried deliberately:** the `zibby:<skill>` namespace is inferred from this session's skill list showing `frontend-design:frontend-design` un-collapsed, not from installing this plugin. Task 5 Step 4 verifies it for real, and a wrong guess costs one line in `marketplace.json`.
