@@ -1,12 +1,9 @@
 #!/usr/bin/env bash
 # Exercises install.sh end to end. This IS destructive to real state on the
-# machine it runs on: it deletes any real ~/.claude/skills/{todo,create-jira-
-# issue,todo-driven-development} symlinks that point into this repo (the
-# installer's legacy-symlink cleanup, auto-confirmed via --yes), and it
-# registers the real zibby-skills marketplace with `claude` (removed again
-# at the end unless it was already registered before this run). The plugin
-# itself is only ever installed into a throwaway project directory, never
-# at user scope.
+# machine it runs on: it registers the real zibby-skills marketplace with
+# `claude` (removed again at the end unless it was already registered
+# before this run). The plugin itself is only ever installed into a
+# throwaway project directory, never at user scope.
 set -uo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 1
 REPO="$PWD"
@@ -36,7 +33,7 @@ if [ $rc -gt 1 ]; then echo "FAIL: doctor exited $rc"; cat "$TMP/doctor.log"; fa
 
 echo "== project-scope install resolves superpowers as a real dependency =="
 mkdir -p "$TMP/proj"
-( cd "$TMP/proj" && "$REPO/install.sh" --scope project --yes --skip-mcp-check ) >"$TMP/install.log" 2>&1
+( cd "$TMP/proj" && "$REPO/install.sh" --scope project --skip-mcp-check ) >"$TMP/install.log" 2>&1
 rc=$?
 if [ $rc -ne 0 ]; then echo "FAIL: install exited $rc"; cat "$TMP/install.log"; fail=1; fi
 
@@ -62,7 +59,7 @@ else
 fi
 
 echo "== re-running the same install is idempotent =="
-( cd "$TMP/proj" && "$REPO/install.sh" --scope project --yes --skip-mcp-check ) >"$TMP/install2.log" 2>&1
+( cd "$TMP/proj" && "$REPO/install.sh" --scope project --skip-mcp-check ) >"$TMP/install2.log" 2>&1
 rc=$?
 if [ $rc -ne 0 ]; then
   echo "FAIL: second install exited $rc"

@@ -4,16 +4,13 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -z "$REPO_ROOT" ] || [ ! -f "$REPO_ROOT/.claude-plugin/marketplace.json" ]; then
   echo "install.sh: could not resolve this repo's root (got '$REPO_ROOT') — refusing to run," >&2
-  echo "  since the legacy-symlink cleanup below trusts REPO_ROOT to scope what it deletes." >&2
+  echo "  since marketplace registration below needs a real path to add." >&2
   exit 1
 fi
 MARKETPLACE="zibby-skills"
 PLUGIN="zibby"
-SKILLS_DIR="$HOME/.claude/skills"
-LEGACY_LINKS=(todo create-jira-issue todo-driven-development)
 
 SCOPE=""
-ASSUME_YES=0
 DOCTOR_ONLY=0
 SKIP_MCP=0
 
@@ -25,11 +22,10 @@ while [ $# -gt 0 ]; do
         exit 1
       fi
       SCOPE="$2"; shift 2 ;;
-    --yes|-y) ASSUME_YES=1; shift ;;
     --doctor-only) DOCTOR_ONLY=1; shift ;;
     --skip-mcp-check) SKIP_MCP=1; shift ;;
     -h|--help)
-      echo "Usage: ./install.sh [--scope user|project|local] [--yes] [--doctor-only] [--skip-mcp-check]"
+      echo "Usage: ./install.sh [--scope user|project|local] [--doctor-only] [--skip-mcp-check]"
       exit 0 ;;
     *) echo "Unknown argument: $1" >&2; exit 1 ;;
   esac
@@ -102,55 +98,14 @@ if [ "$DOCTOR_ONLY" -eq 1 ]; then
   exit 0
 fi
 
-# Fail before touching anything — not after registering the marketplace or
-# deleting symlinks — if we have no scope and no way to ask for one. This
-# has to be decidable from the flags alone, so it belongs before any of the
-# mutations below rather than down in the "pick scope" step.
+# Fail before touching anything — not after registering the marketplace —
+# if we have no scope and no way to ask for one. This has to be decidable
+# from the flags alone, so it belongs before any of the mutations below
+# rather than down in the "pick scope" step.
 if [ -z "$SCOPE" ] && [ ! -t 0 ]; then
   bad "no --scope given and stdin is not a terminal to prompt on"
   bad "pass --scope user|project|local explicitly"
   exit 1
-fi
-
-# ------------------------------------------------- legacy symlink cleanup
-stale=()
-for name in "${LEGACY_LINKS[@]}"; do
-  link="$SKILLS_DIR/$name"
-  if [ -L "$link" ]; then
-    target="$(readlink "$link")"
-    case "$target" in
-      "$REPO_ROOT"|"$REPO_ROOT"/*) stale+=("$link") ;;
-    esac
-  fi
-done
-
-if [ "${#stale[@]}" -gt 0 ]; then
-  say ""
-  say "Found ${#stale[@]} legacy skills-dir symlink(s) pointing into this repo:"
-  printf '    %s\n' "${stale[@]}"
-  say ""
-  say "These conflict with the plugin install — the same skills would register"
-  say "twice, once as @skills-dir and once as @$MARKETPLACE."
-  if [ "$ASSUME_YES" -eq 1 ]; then
-    reply=y
-  else
-    printf 'Remove them? [y/N] '
-    read -r reply
-  fi
-  case "$reply" in
-    y|Y|yes)
-      for link in "${stale[@]}"; do
-        if rm "$link"; then
-          ok "removed $link"
-        else
-          bad "failed to remove $link — aborting rather than risk installing a conflicting copy"
-          exit 1
-        fi
-      done ;;
-    *)
-      bad "Declined. Refusing to install a conflicting copy."
-      exit 1 ;;
-  esac
 fi
 
 # -------------------------------------------------- register marketplace

@@ -20,16 +20,14 @@ cd zibby-skills
 ./install.sh
 ```
 
-`install.sh` checks prerequisites, offers to remove any conflicting `~/.claude/skills` symlinks from
-the pre-marketplace layout (aborting if you decline), registers the marketplace and installs at the
-scope you choose. Run bare
-in a terminal, it prompts for the scope; run with stdin that isn't a terminal (CI, a piped
+`install.sh` checks prerequisites, registers the marketplace and installs at the scope you choose.
+Run bare in a terminal, it prompts for the scope; run with stdin that isn't a terminal (CI, a piped
 invocation), it has no way to prompt and exits 1 telling you to pass `--scope` explicitly.
 
 Non-interactive:
 
 ```bash
-./install.sh --scope user --yes
+./install.sh --scope user
 ./install.sh --doctor-only          # just the prerequisite report
 ./install.sh --skip-mcp-check       # skip the Atlassian MCP check in the doctor report
 ```
