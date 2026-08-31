@@ -1,0 +1,13 @@
+{
+  "name": "zibby",
+  "version": "0.1.0",
+  "description": "How Karel works: TODO backlog, Jira issue creation, and the TODO-to-PR pipeline.",
+  "author": {
+    "name": "Karel Zíbar",
+    "email": "karel.zibar@team.blue"
+  },
+  "homepage": "https://github.com/ZibbyKarel/skills",
+  "license": "MIT",
+  "keywords": ["todo", "jira", "workflow", "productivity"],
+  "dependencies": ["superpowers@claude-plugins-official"]
+}

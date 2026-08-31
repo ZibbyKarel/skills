@@ -9,13 +9,29 @@ argument-hint: "<description of the work to file as a Jira issue>"
 Turns a description of work into a Jira issue grounded in the actual code, not just a restatement
 of the input. Works standalone (any input) or as a step another skill hands a TODO.md line to.
 
-## 1. Ask how autonomous to be, once, at the start
+## 1. Establish the autonomy level, once, at the start
 
-Before doing anything else, ask the user: do they want to see the drafted title/description/labels
-and confirm before it's actually created, or should this run create it straight away? Creating a
-Jira issue is visible to the whole team and not something to spam — but the user may be running
-this from an already-reviewed flow (like `todo-driven-development`) where re-confirming every time
-is friction, not safety. Don't assume either way; ask.
+There are three levels. Pick the one that applies before doing anything else:
+
+- **confirm** — draft the issue, show it, create only after the user says yes.
+- **auto** — create straight away without showing the draft first.
+- **unattended** — like `auto`, plus: this run has no human watching it, so **every question this
+  skill would otherwise ask is forbidden**. Wherever a later step says "ask the user", return the
+  named failure status instead and stop. Only a calling skill sets this level.
+
+If a calling skill passed a level explicitly (`todo-driven-development`'s unattended mode does),
+use it and don't ask. Otherwise ask the user whether they want `confirm` or `auto`: creating a Jira
+issue is visible to the whole team and not something to spam, but re-confirming every time inside
+an already-reviewed flow is friction, not safety. Don't assume either way; ask.
+
+**Failure statuses (unattended only).** Each is a plain, final line back to the caller — never a
+question, never a guess:
+
+- `NO_CONFIG: <what is missing>` — the board configuration can't be resolved (step 2).
+- `DUPLICATE: <existing key> <existing url>` — a likely duplicate already exists (step 5).
+- `JIRA_UNAVAILABLE: <the error>` — an Atlassian call failed on auth, network, or permissions.
+
+Nothing gets created on any of these.
 
 ## 2. Find the board configuration
 
@@ -47,6 +63,10 @@ If `IssueType` is missing, call `getJiraProjectIssueTypesMetadata` for the proje
 available issue type names, ask the user which one to use, and mention they can add `IssueType` to
 the README config to skip this question next time.
 
+**Unattended:** neither question may be asked. A missing `Board` or `Site` ends the run with
+`NO_CONFIG: <what is missing>`. A missing `IssueType` does too — guessing an issue type name on a
+localized instance is how a whole night's run fails identically eleven times.
+
 ## 3. Resolve the assignee
 
 Call `atlassianUserInfo` and use its `account_id` as `assignee_account_id` — this always assigns
@@ -74,10 +94,15 @@ stop and ask the user how to proceed — create anyway, reuse the existing issue
 — rather than silently filing a duplicate. This matters most when this skill is invoked repeatedly
 over the same source item (e.g. a retried `todo-driven-development` run after a failure).
 
-## 6. Confirm (if the user asked for that in step 1)
+**Unattended:** a strong match ends the run with `DUPLICATE: <key> <url>` and creates nothing. Do
+not resolve the ambiguity yourself in either direction — filing a duplicate spams a board the whole
+team reads, and silently reusing an issue whose scope only looks similar attaches a night's work to
+the wrong ticket. Both are worse than handing the decision back in the morning report.
+
+## 6. Confirm (only at autonomy level `confirm`)
 
 Show the drafted title, description, issue type, labels, and assignee. Apply any edits the user
-asks for. Skip this step entirely if they chose the auto-create mode in step 1.
+asks for. Skip this step entirely at `auto` and `unattended`.
 
 ## 7. Create the issue
 

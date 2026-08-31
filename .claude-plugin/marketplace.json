@@ -1,0 +1,20 @@
+{
+  "name": "zibby-skills",
+  "owner": {
+    "name": "Karel Zíbar",
+    "email": "karel.zibar@team.blue"
+  },
+  "metadata": {
+    "description": "Personal Claude Code skills: TODO backlog, Jira issue creation, and the TODO-to-PR pipeline.",
+    "version": "0.1.0"
+  },
+  "allowCrossMarketplaceDependenciesOn": ["claude-plugins-official"],
+  "plugins": [
+    {
+      "name": "zibby",
+      "source": "./",
+      "description": "How Karel works: TODO backlog, Jira issue creation, and the TODO-to-PR pipeline.",
+      "category": "productivity"
+    }
+  ]
+}
