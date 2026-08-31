@@ -14,7 +14,7 @@ line-order numbering scheme so `list`/`next`/`show`/`done`/`undone` all agree on
 means.
 
 ```bash
-python3 <path-to-this-skill>/scripts/todo.py <command> [args]
+python3 ${CLAUDE_PLUGIN_ROOT}/skills/todo/scripts/todo.py <command> [args]
 ```
 
 ## Commands

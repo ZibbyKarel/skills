@@ -1,10 +1,10 @@
 ---
-name: create-jira-issue
-description: "Turn any input — a TODO.md line, a bug report, a Slack message, a vague one-liner — into a well-researched Jira issue in the current project's board. Reads the target board/site/issue-type/labels from a '## Jira' section in this repo's README.md, researches the actual codebase for relevant files and functions to ground the description in fact rather than restating the input, checks for likely duplicates before creating, and reports back the created issue's key and URL. Use this whenever the user asks to file/create/open a Jira issue or ticket for something, not only when working through a TODO.md — it accepts anything describing a piece of work."
+name: jira
+description: "Create a Jira issue in the current project's board from any input — a TODO.md line, a bug report, a Slack message, a vague one-liner. Reads the target board/site/issue-type/labels from a '## Jira' section in this repo's README.md, researches the actual codebase for relevant files and functions to ground the description in fact rather than restating the input, checks for likely duplicates before creating, and reports back the created issue's key and URL. Use this whenever the user asks to file/create/open a Jira issue or ticket for something, not only when working through a TODO.md — it accepts anything describing a piece of work."
 argument-hint: "<description of the work to file as a Jira issue>"
 ---
 
-# create-jira-issue
+# jira
 
 Turns a description of work into a Jira issue grounded in the actual code, not just a restatement
 of the input. Works standalone (any input) or as a step another skill hands a TODO.md line to.
@@ -19,7 +19,7 @@ There are three levels. Pick the one that applies before doing anything else:
   skill would otherwise ask is forbidden**. Wherever a later step says "ask the user", return the
   named failure status instead and stop. Only a calling skill sets this level.
 
-If a calling skill passed a level explicitly (`todo-driven-development`'s unattended mode does),
+If a calling skill passed a level explicitly (`zibby:todo-driven-development`'s unattended mode does),
 use it and don't ask. Otherwise ask the user whether they want `confirm` or `auto`: creating a Jira
 issue is visible to the whole team and not something to spam, but re-confirming every time inside
 an already-reviewed flow is friction, not safety. Don't assume either way; ask.
@@ -92,7 +92,7 @@ Draft a title (a concise, imperative one-liner — the same bar as a good commit
 those keywords against the summary. If an open (non-Done-category) issue looks like a strong match,
 stop and ask the user how to proceed — create anyway, reuse the existing issue, or refine the input
 — rather than silently filing a duplicate. This matters most when this skill is invoked repeatedly
-over the same source item (e.g. a retried `todo-driven-development` run after a failure).
+over the same source item (e.g. a retried `zibby:todo-driven-development` run after a failure).
 
 **Unattended:** a strong match ends the run with `DUPLICATE: <key> <url>` and creates nothing. Do
 not resolve the ambiguity yourself in either direction — filing a duplicate spams a board the whole
@@ -114,5 +114,5 @@ Call `createJiraIssue` with `cloudId` (the `Site` value), `projectKey` (`Board`)
 
 State the created (or reused) issue's key and `webUrl` plainly, e.g.
 `Created CZ3TDR1-583: https://teamdotblue.atlassian.net/browse/CZ3TDR1-583` — a caller like
-`todo-driven-development` needs exactly this to link the item back with `todo done <n> <url>` and,
+`zibby:todo-driven-development` needs exactly this to link the item back with `todo done <n> <url>` and,
 later, in a PR description.

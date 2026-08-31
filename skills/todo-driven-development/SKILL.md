@@ -1,13 +1,13 @@
 ---
 name: todo-driven-development
-description: "Drive a project's TODO.md items all the way from backlog to a draft PR — file a researched Jira issue, write and confirm an implementation plan, execute it with subagent-driven development, and open the resulting draft PR linked back to the issue. Use this when the user wants to work through their TODO.md, either one specific item ('process item 3', 'work on the flaky-test todo') or the whole backlog ('go through my todo list', 'process everything in TODO.md'), including as an unattended overnight run that reports a table of issues and PRs in the morning. This is a thin conductor over three other skills — todo, create-jira-issue, and the superpowers plugin — not a reimplementation of any of them."
+description: "Drive a project's TODO.md items all the way from backlog to a draft PR — file a researched Jira issue, write and confirm an implementation plan, execute it with subagent-driven development, and open the resulting draft PR linked back to the issue. Use this when the user wants to work through their TODO.md, either one specific item ('process item 3', 'work on the flaky-test todo') or the whole backlog ('go through my todo list', 'process everything in TODO.md'), including as an unattended overnight run that reports a table of issues and PRs in the morning. This is a thin conductor over three other skills — zibby:todo, zibby:jira, and the superpowers plugin — not a reimplementation of any of them."
 argument-hint: "<item-number> | all | all --unattended"
 ---
 
 # todo-driven-development
 
-Conducts three existing skills into one pipeline; it owns none of their logic. Depends on `todo`,
-`create-jira-issue`, and the `superpowers` plugin (`writing-plans`, `subagent-driven-development`,
+Conducts three existing skills into one pipeline; it owns none of their logic. Depends on `zibby:todo`,
+`zibby:jira`, and the `superpowers` plugin (`writing-plans`, `subagent-driven-development`,
 `finishing-a-development-branch`) all being available — if `superpowers` isn't installed, say so and
 stop rather than reimplementing any part of it.
 
@@ -83,7 +83,7 @@ items already have issues and PRs.
 
 ### 2. File the Jira issue
 
-Invoke the `create-jira-issue` skill with the item's text as input.
+Invoke the `zibby:jira` skill with the item's text as input.
 
 **Interactive modes:** it asks its own confirm-before-create question and does its own duplicate
 check — don't second-guess or pre-answer either on its behalf, even in whole-backlog mode; each
@@ -93,7 +93,7 @@ issue is an independent decision.
 from an earlier, interrupted pass of this run, reuse that issue and resume at step 3. Re-filing it
 would find the issue this very run created and skip the item as a duplicate of itself.
 
-Otherwise pass `create-jira-issue` the autonomy level `unattended` explicitly, which is the one case where
+Otherwise pass `zibby:jira` the autonomy level `unattended` explicitly, which is the one case where
 pre-answering that question is correct — the user authorized it when they asked for an overnight
 run. That level also turns its own would-be questions into failure statuses. Handle each by ending
 the item and moving on, never by deciding for it:
