@@ -733,7 +733,10 @@ cd /Users/zibar/Workspace/zibby-skills
 ./install.sh --scope user
 ```
 
-Answer `y` when it offers to remove the three legacy symlinks. Expected: doctor report, three `removed …` lines, marketplace registered, then `Successfully installed plugin: zibby@zibby-skills (scope: user) (+ 1 dependency: superpowers)` — or without the dependency clause if `superpowers` is already installed at user scope, which it is on this machine. Either is correct.
+Answer `y` when it offers to remove the three legacy symlinks. Expected: doctor report, three
+`removed …` lines — **or none, if Task 3's smoke test already cleared them**: that test runs
+`install.sh --yes`, which auto-answers this prompt, and the symlinks point at this very repo.
+Either is a pass. Then marketplace registered, then `Successfully installed plugin: zibby@zibby-skills (scope: user) (+ 1 dependency: superpowers)` — or without the dependency clause if `superpowers` is already installed at user scope, which it is on this machine. Either is correct.
 
 - [ ] **Step 3: Verify the installed state**
 
