@@ -1,6 +1,6 @@
 ---
 name: jira
-description: "Create a Jira issue in the current project's board from any input — a TODO.md line, a bug report, a Slack message, a vague one-liner. Reads the target board/site/issue-type/labels from a '## Jira' section in this repo's README.md, researches the actual codebase for relevant files and functions to ground the description in fact rather than restating the input, checks for likely duplicates before creating, and reports back the created issue's key and URL. Use this whenever the user asks to file/create/open a Jira issue or ticket for something, not only when working through a TODO.md — it accepts anything describing a piece of work."
+description: "Create a Jira issue in the current project's board from any input — a TODO.md line, a bug report, a Slack message, a vague one-liner. Reads the target board/site/issue-type/labels from a 'jira:' key in this repo's `.zibby/zibby-skills/config.yml`, researches the actual codebase for relevant files and functions to ground the description in fact rather than restating the input, checks for likely duplicates before creating, and reports back the created issue's key and URL. Use this whenever the user asks to file/create/open a Jira issue or ticket for something, not only when working through a TODO.md — it accepts anything describing a piece of work."
 argument-hint: "<description of the work to file as a Jira issue>"
 ---
 
@@ -35,33 +35,34 @@ Nothing gets created on any of these.
 
 ## 2. Find the board configuration
 
-Read this repo's `README.md` for a `## Jira` section with `Key: value` lines, e.g.:
+Read this repo's `.zibby/zibby-skills/config.yml` for a `jira:` key, e.g.:
 
-```markdown
-## Jira
-
-Board: CZ3TDR1
-Site: teamdotblue.atlassian.net
-IssueType: Úkol
-Labels: shoptet-addon-cli
+```yaml
+jira:
+  board: CZ3TDR1
+  site: teamdotblue.atlassian.net
+  issueType: Úkol
+  labels:
+    - shoptet-addon-cli
 ```
 
-- `Board` (required) — the Jira project key.
-- `Site` (required) — the Atlassian cloud site hostname; pass it directly as `cloudId` to the
+- `board` (required) — the Jira project key.
+- `site` (required) — the Atlassian cloud site hostname; pass it directly as `cloudId` to the
   Atlassian MCP tools (per their own instructions, the hostname works as a `cloudId` argument
   directly for most calls — fall back to `getAccessibleAtlassianResources` and match by URL only
   if a call rejects it).
-- `IssueType` (optional) — the exact issue type name to pass as `issueTypeName`. This is
+- `issueType` (optional) — the exact issue type name to pass as `issueTypeName`. This is
   instance-specific and often localized (e.g. "Úkol", not "Task") — never assume "Task" works.
-- `Labels` (optional) — comma-separated labels always applied to issues this skill creates.
+- `labels` (optional) — a YAML list of labels always applied to issues this skill creates.
 
-If the section, or `Board`/`Site` within it, is missing: tell the user this project has no Jira
-config yet, ask them for the missing values now so this run can proceed, and mention they can add
-a `## Jira` section to `README.md` (offer to write it for them) so future runs don't need to ask.
+If the file, the `jira:` key, or `board`/`site` within it, is missing: tell the user this project
+has no Jira config yet, ask them for the missing values now so this run can proceed, and offer to
+create/update `.zibby/zibby-skills/config.yml` for them (creating the `.zibby/zibby-skills/`
+directories first if they don't exist) so future runs don't need to ask.
 
-If `IssueType` is missing, call `getJiraProjectIssueTypesMetadata` for the project, show the
-available issue type names, ask the user which one to use, and mention they can add `IssueType` to
-the README config to skip this question next time.
+If `issueType` is missing, call `getJiraProjectIssueTypesMetadata` for the project, show the
+available issue type names, ask the user which one to use, and mention they can add `issueType` to
+the config file to skip this question next time.
 
 **Unattended:** neither question may be asked. A missing `Board` or `Site` ends the run with
 `NO_CONFIG: <what is missing>`. A missing `IssueType` does too — guessing an issue type name on a
@@ -108,7 +109,7 @@ asks for. Skip this step entirely at `auto` and `unattended`.
 
 Call `createJiraIssue` with `cloudId` (the `Site` value), `projectKey` (`Board`), `issueTypeName`,
 `summary` (the drafted title), `description`, `assignee_account_id`, and
-`additional_fields: {"labels": [...]}` for the README's `Labels` plus any the user asked to add.
+`additional_fields: {"labels": [...]}` for the config's `labels` plus any the user asked to add.
 
 ## 8. Report the result
 

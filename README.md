@@ -54,8 +54,8 @@ to you:
 - `python3` — `zibby:todo` shells out to it. Blocking.
 - `gh` — `zibby:todo-driven-development` opens pull requests with it.
 - **Atlassian MCP server**, authenticated — `zibby:jira` needs it. Log in with `/mcp`.
-- A `## Jira` section in the README of each repo you file issues from, naming the target board,
-  site, issue type and labels.
+- A `jira:` key in `.zibby/zibby-skills/config.yml` at the root of each repo you file issues from,
+  naming the target board, site, issue type and labels.
 
 ## Uninstall
 
