@@ -19,8 +19,8 @@ There are three levels. Pick the one that applies before doing anything else:
   skill would otherwise ask is forbidden**. Wherever a later step says "ask the user", return the
   named failure status instead and stop. Only a calling skill sets this level.
 
-If a calling skill passed a level explicitly (`zibby:todo-driven-development`'s unattended mode does),
-use it and don't ask. Otherwise ask the user whether they want `confirm` or `auto`: creating a Jira
+If a calling skill passed a level explicitly (`zibby:todo-driven-development` always does, in every
+one of its modes), use it and don't ask. Otherwise ask the user whether they want `confirm` or `auto`: creating a Jira
 issue is visible to the whole team and not something to spam, but re-confirming every time inside
 an already-reviewed flow is friction, not safety. Don't assume either way; ask.
 

@@ -24,6 +24,20 @@ stop rather than reimplementing any part of it.
 All three run the same per-item pipeline below. The only differences are what feeds the loop and,
 in unattended mode, the substitutions named in each step.
 
+## Autonomy level — one-item and whole-backlog modes
+
+Before touching the first item, ask the user once: **auto** or **review**. Never ask again, and
+never let a later step re-ask on the run's behalf — the answer governs every item in this run.
+
+- **auto** — no draft is shown for the Jira issue or the plan; the plan is instead checked by an
+  independent subagent reviewer, the same way unattended mode checks it (step 4). Implementation
+  and PR creation are already automatic in every mode and don't change.
+- **review** — the user sees the drafted Jira issue (step 2) and the drafted plan (step 4) before
+  either moves on. Implementation and PR creation are still automatic once the plan is confirmed.
+
+Unattended mode never asks this question — it already runs `auto`'s per-item behavior, plus the
+full question-suppression described below.
+
 ## What unattended mode does and does not relax
 
 It replaces **questions** with **recorded decisions**. It does not relax any judgment about what is
@@ -85,9 +99,12 @@ items already have issues and PRs.
 
 Invoke the `zibby:jira` skill with the item's text as input.
 
-**Interactive modes:** it asks its own confirm-before-create question and does its own duplicate
-check — don't second-guess or pre-answer either on its behalf, even in whole-backlog mode; each
-issue is an independent decision.
+**One-item and whole-backlog modes:** pass the autonomy level chosen at the top of the run,
+explicitly — `confirm` for `review`, `auto` for `auto` — so `zibby:jira` doesn't ask its own
+question per item; the run already answered it once. It still runs its own duplicate check
+regardless of level, and that check is never pre-answered: if it finds a strong match, let it ask
+the user how to proceed (create anyway, reuse, or refine) exactly as it's written — each duplicate
+is an independent decision even within an `auto` run.
 
 **Unattended mode:** first check the ledger for this item's row — if it already carries an issue key
 from an earlier, interrupted pass of this run, reuse that issue and resume at step 3. Re-filing it
@@ -120,17 +137,18 @@ Invoke `superpowers:writing-plans`, pointing it at the spec file from step 3. It
 
 **Before answering that**, the plan's *content* gets checked. This is the step the whole skill
 exists for — running `subagent-driven-development` on an unexamined plan is what this pipeline was
-built to avoid — so it is never skipped, only performed differently depending on who is awake.
+built to avoid — so it is never skipped, only performed differently depending on the run's autonomy
+level.
 
-**Interactive modes — the user checks it.** Show them the plan (or a tight summary — files touched,
-task list, and anything you'd flag) and ask if it needs changes. This is not optional and not
-something to fold into a "run everything hands-off" preference. Apply any requested changes before
-moving on.
+**review — the user checks it.** Show them the plan (or a tight summary — files touched, task list,
+and anything you'd flag) and ask if it needs changes. This is not optional and not something to fold
+into a "run everything hands-off" preference. Apply any requested changes before moving on.
 
-**Unattended mode — an independent reviewer checks it.** Dispatch a fresh subagent on the most
-capable available model — fresh because a reviewer that watched you write the plan will agree with
-it. Hand it two file paths, the spec and the plan, and nothing else; do not summarize either into
-the prompt, and do not tell it what you think of the plan. Ask it for four verdicts:
+**auto and unattended — an independent reviewer checks it instead of the user.** Dispatch a fresh
+subagent on the most capable available model — fresh because a reviewer that watched you write the
+plan will agree with it. Hand it two file paths, the spec and the plan, and nothing else; do not
+summarize either into the prompt, and do not tell it what you think of the plan. Ask it for four
+verdicts:
 
 1. **Coverage** — does every requirement in the spec map to a task in the plan? Name the gaps.
 2. **Placeholders** — any "TBD", "handle edge cases", "similar to Task N", or a code step with no
@@ -144,16 +162,19 @@ the prompt, and do not tell it what you think of the plan. Ask it for four verdi
 It returns `SOUND`, `SOUND_WITH_NOTES` (plus the notes), or `DEFECTIVE` (plus the reasons).
 
 - `SOUND` → proceed.
-- `SOUND_WITH_NOTES` → record the notes in the ledger and carry them verbatim into step 5's
-  dispatch, so the executing skill's own review loop sees them.
-- `DEFECTIVE`, or any finding under verdict 4 → **skip the item**. Record
-  `skipped: plan defect — <reason>` and move to the next one. The Jira issue stays open and the
-  TODO item stays unchecked, which is the correct morning state: a human reads the reason and
-  decides. Do not attempt a repair round — a plan a reviewer called defective is a plan whose spec
-  or research is wrong upstream, and re-planning it unattended just produces a second wrong plan
-  more confidently.
+- `SOUND_WITH_NOTES` → record the notes (in the ledger, if this run keeps one) and carry them
+  verbatim into step 5's dispatch, so the executing skill's own review loop sees them.
+- `DEFECTIVE`, or any finding under verdict 4:
+  - **auto** — `auto` suppresses confirmations, not escalations. Stop and show the user the plan
+    and the reviewer's reasons, and ask how to proceed, before touching this item further.
+  - **unattended** — no one is there to ask. Skip the item. Record
+    `skipped: plan defect — <reason>` and move to the next one. The Jira issue stays open and the
+    TODO item stays unchecked, which is the correct morning state: a human reads the reason and
+    decides. Do not attempt a repair round — a plan a reviewer called defective is a plan whose spec
+    or research is wrong upstream, and re-planning it unattended just produces a second wrong plan
+    more confidently.
 
-Once the plan is confirmed (either way), answer the execution-approach question with
+Once the plan is confirmed (any path above), answer the execution-approach question with
 **Subagent-Driven** — this pipeline always uses `superpowers:subagent-driven-development`, never
 inline execution.
 
