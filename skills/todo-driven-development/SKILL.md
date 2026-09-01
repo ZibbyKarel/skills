@@ -189,10 +189,18 @@ best-effort: no confident match, or a failed call, gets noted (a ledger row in u
 mention to the user otherwise) and the item proceeds regardless — a wrong or missing Jira status is
 a one-click fix later, never a reason to stop or fail the item.
 
-Invoke `superpowers:subagent-driven-development` on the confirmed plan. Let it run to completion per
-its own rules (continuous execution, its own model selection, its own review loop) — this skill
-doesn't intervene in how it implements or reviews. It ends by directing you to
-`superpowers:finishing-a-development-branch`.
+Also before dispatching, name the branch to match Jira's own convention rather than letting
+`subagent-driven-development`'s setup step invent one: `<ISSUE-KEY>-<slug>`, where `<slug>` is the
+issue title lowercased, every run of non-alphanumeric characters collapsed to a single hyphen, and
+leading/trailing hyphens trimmed — e.g. issue `CZ3TDR1-590` titled "Shoptet init: add node_modules
+to the scaffolded .gitignore" becomes
+`CZ3TDR1-590-shoptet-init-add-node-modules-to-the-scaffolded-gitignore`. State this exact branch
+name in the dispatch below.
+
+Invoke `superpowers:subagent-driven-development` on the confirmed plan, stating the branch name
+computed above for its setup step to use. Let it run to completion per its own rules (continuous
+execution, its own model selection, its own review loop) — this skill doesn't intervene in how it
+implements or reviews. It ends by directing you to `superpowers:finishing-a-development-branch`.
 
 **Unattended mode:** state the standing authorizations from the top of this file in the dispatch, so
 its own stop conditions resolve without a human. Carry any `SOUND_WITH_NOTES` findings from step 4
