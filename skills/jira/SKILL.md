@@ -42,6 +42,7 @@ jira:
   board: CZ3TDR1
   site: teamdotblue.atlassian.net
   issueType: Úkol
+  team: CZ3-DEVREL
   labels:
     - shoptet-addon-cli
 ```
@@ -53,6 +54,8 @@ jira:
   if a call rejects it).
 - `issueType` (optional) — the exact issue type name to pass as `issueTypeName`. This is
   instance-specific and often localized (e.g. "Úkol", not "Task") — never assume "Task" works.
+- `team` (optional) — the Jira Team (e.g. `CZ3-DEVREL`) assigned to every issue this skill creates.
+  Resolved to the field's actual id at create time — see step 7.
 - `labels` (optional) — a YAML list of labels always applied to issues this skill creates.
 
 If the file, the `jira:` key, or `board`/`site` within it, is missing: tell the user this project
@@ -102,14 +105,24 @@ the wrong ticket. Both are worse than handing the decision back in the morning r
 
 ## 6. Confirm (only at autonomy level `confirm`)
 
-Show the drafted title, description, issue type, labels, and assignee. Apply any edits the user
-asks for. Skip this step entirely at `auto` and `unattended`.
+Show the drafted title, description, issue type, labels, team, and assignee. Apply any edits the
+user asks for. Skip this step entirely at `auto` and `unattended`.
 
 ## 7. Create the issue
 
+If the config has a `team`, resolve it to the field's actual id first: call
+`getJiraIssueTypeMetaWithFields` for the project and issue type, find the field named "Team" (its
+field id is instance-specific — never assume a fixed `customfield_NNNNN` number), and match
+`team`'s configured value against that field's allowed values by name to get the id to send. If the
+field isn't on this issue type, or `team`'s value isn't among its allowed values, don't guess or
+create the field's value from the string: tell the user (interactive) or note it and proceed without
+`team` (unattended) — a team-less issue is a one-click morning fix, and guessing an id risks
+assigning the issue to the wrong team silently.
+
 Call `createJiraIssue` with `cloudId` (the `Site` value), `projectKey` (`Board`), `issueTypeName`,
-`summary` (the drafted title), `description`, `assignee_account_id`, and
-`additional_fields: {"labels": [...]}` for the config's `labels` plus any the user asked to add.
+`summary` (the drafted title), `description`, `assignee_account_id`, and `additional_fields` built
+from the config's `labels` plus any the user asked to add, and the resolved `team` field/id if one
+was found.
 
 ## 8. Report the result
 
