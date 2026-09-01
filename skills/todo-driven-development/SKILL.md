@@ -180,6 +180,15 @@ inline execution.
 
 ### 5. Execute
 
+Before dispatching, move the Jira issue into progress: call `getTransitionsForJiraIssue` for the
+issue key from step 2, and pick the transition whose name best matches "in progress" — match
+case-insensitively and allow for a localized name (this instance's issue types already are, e.g.
+"Úkol"); if no name matches but exactly one transition targets a status in the `indeterminate`
+category, use that one instead. Call `transitionJiraIssue` with the chosen transition. Treat this as
+best-effort: no confident match, or a failed call, gets noted (a ledger row in unattended mode, a
+mention to the user otherwise) and the item proceeds regardless — a wrong or missing Jira status is
+a one-click fix later, never a reason to stop or fail the item.
+
 Invoke `superpowers:subagent-driven-development` on the confirmed plan. Let it run to completion per
 its own rules (continuous execution, its own model selection, its own review loop) — this skill
 doesn't intervene in how it implements or reviews. It ends by directing you to
@@ -209,6 +218,13 @@ question, and only with this one option.
 Compose the PR body so it links the Jira issue from step 2 — e.g. a line like
 `Resolves <ISSUE-KEY>: <issue URL>` — since `finishing-a-development-branch`'s own template has no
 notion of Jira. Report the created PR's URL once it exists.
+
+Once the PR exists, move the Jira issue to its review status the same best-effort way as step 5:
+call `getTransitionsForJiraIssue` again and pick the transition whose name best matches "review"
+(case-insensitively, allowing for localization), falling back to a lone `indeterminate`-category
+candidate only when no name matches. Call `transitionJiraIssue` with it. A missing match or a
+failed call is noted, not fatal, exactly as in step 5 — never skip the item or withhold the PR over
+a transition that didn't go through.
 
 If the test suite is red and the branch never reaches a PR, record `failed: tests red` with the
 failing suite's name and move on. An item without a PR URL is never marked done in step 7.
