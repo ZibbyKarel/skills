@@ -78,13 +78,20 @@ whoever is actually running the skill, not a hardcoded person.
 
 ## 4. Research the codebase before drafting
 
-The input describes a problem or task, not the issue's content — actually go look. Use
-Read/Grep/Glob to find the files, functions, or config genuinely relevant to what's being asked,
-the way you would before making the change yourself. A good description cites concrete
-`path/to/file.ts:42`-style references and states what's actually true about the code today, not a
-paraphrase of the input. Scale the depth of research to how vague the input is: a precise TODO line
-naming a function needs little; "the search page feels slow" needs enough digging to point at an
-actual candidate cause.
+The input describes a problem or task, not the issue's content — actually go look, but don't do the
+digging inline: dispatch it to a subagent with an explicit `model: "sonnet"` override, regardless of
+whatever model this session is otherwise running. Retrieval like this doesn't need the caller's own
+(possibly far more expensive) model, and letting it inherit that model here is how filing a handful
+of issues burns tokens out of proportion to the task.
+
+Give the subagent the raw input text and ask it to use Read/Grep/Glob to find the files, functions,
+or config genuinely relevant to what's being asked, the way you would before making the change
+yourself, and to report back concrete `path/to/file.ts:42` references plus what's actually true
+about the code today — never a paraphrase of the input. Scale the number and breadth of dispatches
+to how vague the input is: a precise TODO line naming a function needs one narrow dispatch; "the
+search page feels slow" needs a broader one (or a few in parallel over distinct candidate areas)
+that digs until it can point at an actual candidate cause. Compose the description yourself from
+what comes back — don't ask the subagent to draft the issue text.
 
 Write the description as Markdown (the default `contentFormat`) with short sections as needed —
 typically a why, a what, and any file references — rather than one undifferentiated paragraph.
