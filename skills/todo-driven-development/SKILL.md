@@ -38,6 +38,24 @@ never let a later step re-ask on the run's behalf — the answer governs every i
 Unattended mode never asks this question — it already runs `auto`'s per-item behavior, plus the
 full question-suppression described below.
 
+## Every item runs in its own worktree
+
+This pipeline never implements an item in the main checkout — a run sitting there for the minutes
+or hours an implementation takes would block the user out of their own repo the whole time. Every
+item gets its own git worktree at `./worktrees/<branch-name>` (the branch name computed in step 5),
+in every mode, not only unattended ones.
+
+State this as a declared directory preference — `./worktrees` at the repo root, not the
+`.worktrees/` default — when invoking `superpowers:using-git-worktrees`, whether directly or
+indirectly through `subagent-driven-development`'s own setup step. `using-git-worktrees` honors a
+declared preference without asking for consent first; the point of this rule is that the question
+never comes up, in any mode, since the answer is always yes.
+
+Before the first worktree of a run, verify `./worktrees` is git-ignored
+(`git check-ignore -q ./worktrees`); if not, append `worktrees/` to `.git/info/exclude` — local-only,
+mirroring how the unattended pre-flight handles `.superpowers/`. Never edit the tracked `.gitignore`
+for this.
+
 ## What unattended mode does and does not relax
 
 It replaces **questions** with **recorded decisions**. It does not relax any judgment about what is
@@ -46,7 +64,6 @@ safe to do.
 Standing authorizations for the whole run:
 
 - push a new feature branch to `origin` and open a **draft** PR from it (step 6's pre-answer).
-- create, use, and remove git worktrees for the run's own branches.
 
 Everything else that would normally stop a human-supervised run still stops the **item**: a
 destructive or irreversible operation, a security-sensitive action, a merge into a shared branch, a
@@ -195,12 +212,14 @@ issue title lowercased, every run of non-alphanumeric characters collapsed to a 
 leading/trailing hyphens trimmed — e.g. issue `CZ3TDR1-590` titled "Shoptet init: add node_modules
 to the scaffolded .gitignore" becomes
 `CZ3TDR1-590-shoptet-init-add-node-modules-to-the-scaffolded-gitignore`. State this exact branch
-name in the dispatch below.
+name, and the worktree path `./worktrees/<that-branch-name>` per the rule above, in the dispatch
+below.
 
-Invoke `superpowers:subagent-driven-development` on the confirmed plan, stating the branch name
-computed above for its setup step to use. Let it run to completion per its own rules (continuous
-execution, its own model selection, its own review loop) — this skill doesn't intervene in how it
-implements or reviews. It ends by directing you to `superpowers:finishing-a-development-branch`.
+Invoke `superpowers:subagent-driven-development` on the confirmed plan, stating the branch name and
+worktree path computed above for its setup step to use. Let it run to completion per its own rules
+(continuous execution, its own model selection, its own review loop) — this skill doesn't intervene
+in how it implements or reviews. It ends by directing you to
+`superpowers:finishing-a-development-branch`.
 
 **Unattended mode:** state the standing authorizations from the top of this file in the dispatch, so
 its own stop conditions resolve without a human. Carry any `SOUND_WITH_NOTES` findings from step 4
@@ -250,12 +269,17 @@ that never makes it back to the branch this pipeline started from.
 itself is reachable from the PR body and from the plan's spec file, so one link in TODO.md is
 enough; don't also try to record the Jira link here.
 
+Whatever stage an item ends at — a shipped PR or any of the `failed`/`skipped` outcomes above —
+remove its worktree before moving to the next item (`git worktree remove --force
+./worktrees/<its-branch-name>`) once you no longer need it for the report. This applies in every
+mode: `./worktrees/` is shared across the whole run, and a leftover entry from a dead or finished
+item just clutters it for whichever item comes next.
+
 **Unattended mode:** append the item's finished row to the ledger, return to the main checkout, and
 go back to step 1 (`todo next`). Two rules govern the loop:
 
-- **Failure isolation.** One item's failure never ends the run. Record its row, clean up its
-  worktree if one is left behind (`git worktree remove --force`), return to the main checkout, and
-  take the next item.
+- **Failure isolation.** One item's failure never ends the run. Record its row, return to the main
+  checkout, and take the next item.
 - **Systemic-failure stop.** Three consecutive items failing at the same stage is not bad luck —
   it's a broken precondition the pre-flight didn't catch. Stop the run and go straight to the
   report.
