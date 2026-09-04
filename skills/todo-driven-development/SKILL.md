@@ -1,7 +1,7 @@
 ---
 name: todo-driven-development
-description: "Drive a project's TODO.md items all the way from backlog to a draft PR — file a researched Jira issue, write and confirm an implementation plan, execute it with subagent-driven development, and open the resulting draft PR linked back to the issue. Use this when the user wants to work through their TODO.md, either one specific item ('process item 3', 'work on the flaky-test todo') or the whole backlog ('go through my todo list', 'process everything in TODO.md'), including as an unattended overnight run that reports a table of issues and PRs in the morning. This is a thin conductor over three other skills — zibby:todo, zibby:jira, and the superpowers plugin — not a reimplementation of any of them."
-argument-hint: "<item-number> | all | all --unattended"
+description: "Drive a project's TODO.md items all the way from backlog to a draft PR — file a researched Jira issue, write and confirm an implementation plan, execute it with subagent-driven development, and open the resulting draft PR linked back to the issue. Use this when the user wants to work through their TODO.md, either one specific item ('process item 3', 'work on the flaky-test todo'), a range of items ('process items 1-4', 'do the first 4'), or the whole backlog ('go through my todo list', 'process everything in TODO.md'), including as an unattended overnight run that reports a table of issues and PRs in the morning. This is a thin conductor over three other skills — zibby:todo, zibby:jira, and the superpowers plugin — not a reimplementation of any of them."
+argument-hint: "<item-number> | <start>-<end> | all | (<start>-<end> | all) --unattended"
 ---
 
 # todo-driven-development
@@ -14,17 +14,22 @@ stop rather than reimplementing any part of it.
 ## Modes
 
 - **One item:** the user names a specific item (by number, or by describing it) — process just that one.
+- **Range:** the user names a span of item numbers (`1-4`, "the first 4", "items 2 through 5") —
+  process those numbers, in ascending order, and nothing outside the span. Resolve a phrase like
+  "the first 4" against `todo list`'s current numbering (`1-4`) before starting; never guess the
+  bound from memory of an earlier `list` call in this conversation.
 - **Whole backlog:** the user asks to work through the whole file — loop calling `todo next` and
   process each pending item in turn until it reports `no pending items`.
-- **Unattended:** the whole backlog with nobody watching — an overnight run. Same pipeline, but
+- **Unattended:** any of the above with nobody watching — an overnight run. Same pipeline, but
   every human checkpoint is replaced by a recorded decision, and the run ends with a report table
   instead of a conversation. Only enter this mode when the user asks for it explicitly (`all
-  --unattended`, "run it overnight", "let it run while I sleep"). Never infer it from impatience.
+  --unattended`, `1-4 --unattended`, "run it overnight", "let it run while I sleep"). Never infer it
+  from impatience.
 
-All three run the same per-item pipeline below. The only differences are what feeds the loop and,
+All four run the same per-item pipeline below. The only differences are what feeds the loop and,
 in unattended mode, the substitutions named in each step.
 
-## Autonomy level — one-item and whole-backlog modes
+## Autonomy level — one-item, range, and whole-backlog modes
 
 Before touching the first item, ask the user once: **auto**, **review**, or **skip Jira**. Never
 ask again, and never let a later step re-ask on the run's behalf — the answer governs every item in
@@ -43,7 +48,7 @@ this run.
 
 Unattended mode never asks this question — it already runs `auto`'s per-item behavior, plus the
 full question-suppression described below. It always files Jira issues; `skip Jira` is only offered
-in one-item and whole-backlog modes.
+in one-item, range, and whole-backlog modes.
 
 ## Every item runs in its own worktree
 
@@ -104,8 +109,10 @@ item 1.
    fails, append `.superpowers/` to `.git/info/exclude` — local-only, so it never lands in a PR
    diff. Do not edit the tracked `.gitignore` for this.
 5. **Snapshot the backlog.** Run `todo list` and write every pending item — its number and text —
-   into the ledger before touching anything. The final report names items the user recognises even
-   if TODO.md changed underneath the run.
+   into the ledger before touching anything. Running a range unattended (`1-4 --unattended`)
+   snapshots and reports on only the items inside that span, already-done ones included (so the
+   ledger can record them as `skipped: already done` per step 1), not the rest of the file. The
+   final report names items the user recognises even if TODO.md changed underneath the run.
 
 Then write the ledger header: the run id, the base branch, the item count, and the standing
 authorizations above. The ledger is the run's memory: it survives compaction, and every later step
@@ -116,8 +123,17 @@ items already have issues and PRs.
 
 ### 1. Get the item's text
 
-`todo show <n>` (one-item mode) or `todo next` (backlog and unattended modes, which also give you
-`<n>`). This is the raw input for the next step — don't rephrase or summarize it yourself first.
+`todo show <n>` (one-item mode) or `todo next` (whole-backlog mode, and unattended mode when it's
+running the whole backlog, both of which also give you `<n>`). This is the raw input for the next
+step — don't rephrase or summarize it yourself first.
+
+**Range mode:** run `todo list` once at the start of the run, not per item, to see which numbers in
+the span are already checked off. Walk the span in ascending order; for each `<n>`, if `list`
+showed it already done, skip it without running any later step — report it (a ledger row in
+unattended mode, a line to the user otherwise) as `skipped: already done` and move to the next
+number in the span. For a still-pending `<n>`, use `todo show <n>` for its text, same as one-item
+mode. When the span is exhausted, the run ends — there is no `todo next` call and no "no pending
+items" condition in this mode.
 
 ### 2. File the Jira issue
 
@@ -127,7 +143,7 @@ from the item's text directly instead of a Jira description.
 
 Otherwise, invoke the `zibby:jira` skill with the item's text as input.
 
-**One-item and whole-backlog modes:** pass the autonomy level chosen at the top of the run,
+**One-item, range, and whole-backlog modes:** pass the autonomy level chosen at the top of the run,
 explicitly — `confirm` for `review`, `auto` for `auto` — so `zibby:jira` doesn't ask its own
 question per item; the run already answered it once. It still runs its own duplicate check
 regardless of level, and that check is never pre-answered: if it finds a strong match, let it ask
@@ -300,7 +316,8 @@ mode: `./worktrees/` is shared across the whole run, and a leftover entry from a
 item just clutters it for whichever item comes next.
 
 **Unattended mode:** append the item's finished row to the ledger, return to the main checkout, and
-go back to step 1 (`todo next`). Two rules govern the loop:
+go back to step 1 — `todo next` when running the whole backlog, or the next number in the span when
+running a range. Two rules govern the loop:
 
 - **Failure isolation.** One item's failure never ends the run. Record its row, return to the main
   checkout, and take the next item.
@@ -308,7 +325,9 @@ go back to step 1 (`todo next`). Two rules govern the loop:
   it's a broken precondition the pre-flight didn't catch. Stop the run and go straight to the
   report.
 
-In interactive backlog mode, go back to step 1 (`todo next`) until there's nothing left.
+In interactive whole-backlog mode, go back to step 1 (`todo next`) until there's nothing left. In
+interactive range mode, go back to step 1 for the next number in the span until the span is
+exhausted.
 
 ## 8. The morning report — unattended mode only
 
