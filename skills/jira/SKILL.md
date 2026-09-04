@@ -58,12 +58,20 @@ jira:
   Resolved to the field's actual id at create time — see step 7.
 - `labels` (optional) — a YAML list of labels always applied to issues this skill creates.
 
-If the file, the `jira:` key, or `board`/`site` within it, is missing: tell the user this project
-has no Jira config yet, ask them for the missing values now so this run can proceed, and offer to
-create/update `.zibby/zibby-skills/config.yml` for them (creating the `.zibby/zibby-skills/`
-directories first if they don't exist) so future runs don't need to ask.
+If the file or the `jira:` key is missing entirely: tell the user this project has no Jira config
+yet and ask whether they want to create one now.
 
-If `issueType` is missing, call `getJiraProjectIssueTypesMetadata` for the project, show the
+- **Yes** — walk through each item this skill can read from the config, one at a time: `board`,
+  `site`, `issueType` (call `getJiraProjectIssueTypesMetadata` first and show the available names
+  rather than asking blind), `team`, and `labels`, noting which are required (`board`, `site`) and
+  which are optional. Write the answers to `.zibby/zibby-skills/config.yml` under a `jira:` key
+  (creating the `.zibby/zibby-skills/` directories first if they don't exist) so future runs don't
+  need to ask.
+- **No** — ask for `board` and `site` for this run only and proceed without writing a file.
+
+If the config exists but is missing `board` or `site`, ask for the missing values now so this run
+can proceed, and offer to add them to the existing config file rather than starting the create flow
+above. If `issueType` is missing, call `getJiraProjectIssueTypesMetadata` for the project, show the
 available issue type names, ask the user which one to use, and mention they can add `issueType` to
 the config file to skip this question next time.
 

@@ -26,17 +26,24 @@ in unattended mode, the substitutions named in each step.
 
 ## Autonomy level — one-item and whole-backlog modes
 
-Before touching the first item, ask the user once: **auto** or **review**. Never ask again, and
-never let a later step re-ask on the run's behalf — the answer governs every item in this run.
+Before touching the first item, ask the user once: **auto**, **review**, or **skip Jira**. Never
+ask again, and never let a later step re-ask on the run's behalf — the answer governs every item in
+this run.
 
 - **auto** — no draft is shown for the Jira issue or the plan; the plan is instead checked by an
   independent subagent reviewer, the same way unattended mode checks it (step 4). Implementation
   and PR creation are already automatic in every mode and don't change.
 - **review** — the user sees the drafted Jira issue (step 2) and the drafted plan (step 4) before
   either moves on. Implementation and PR creation are still automatic once the plan is confirmed.
+- **skip Jira** — this run files no Jira issues at all: step 2 is skipped for every item, and every
+  later step that would touch an issue (spec naming in step 3, the transitions in steps 5 and 6, the
+  `Resolves <ISSUE-KEY>` line in the PR body) is skipped too. Use this for a project that isn't
+  tracked in Jira, or a run where filing issues isn't wanted. The plan is checked the same
+  independent-reviewer way as `auto`.
 
 Unattended mode never asks this question — it already runs `auto`'s per-item behavior, plus the
-full question-suppression described below.
+full question-suppression described below. It always files Jira issues; `skip Jira` is only offered
+in one-item and whole-backlog modes.
 
 ## Every item runs in its own worktree
 
@@ -114,7 +121,11 @@ items already have issues and PRs.
 
 ### 2. File the Jira issue
 
-Invoke the `zibby:jira` skill with the item's text as input.
+**If this run's autonomy level is `skip Jira`, skip this step and step 3 entirely** — there is no
+issue key, URL, or drafted description. Go straight to step 4, writing the spec file described there
+from the item's text directly instead of a Jira description.
+
+Otherwise, invoke the `zibby:jira` skill with the item's text as input.
 
 **One-item and whole-backlog modes:** pass the autonomy level chosen at the top of the run,
 explicitly — `confirm` for `review`, `auto` for `auto` — so `zibby:jira` doesn't ask its own
@@ -146,6 +157,10 @@ Otherwise take its reported issue key, URL, and the description it drafted, and 
 `docs/superpowers/specs/<ISSUE-KEY>.md` containing the issue's title, its URL, and the full drafted
 description from step 2 — this is what carries the Jira link all the way through the plan into
 every task an implementer sees, so don't skip or shorten it.
+
+**`skip Jira`:** there is no `<ISSUE-KEY>`. Name the file `docs/superpowers/specs/todo-<n>.md` (the
+item's number) and write the item's raw text as the spec content — no Jira title, URL, or drafted
+description to include.
 
 ### 4. Write the plan — and get it checked
 
@@ -197,6 +212,9 @@ inline execution.
 
 ### 5. Execute
 
+**`skip Jira`:** there is no issue to transition — skip the paragraph below and go straight to
+naming the branch.
+
 Before dispatching, move the Jira issue into progress: call `getTransitionsForJiraIssue` for the
 issue key from step 2, and pick the transition whose name best matches "in progress" — match
 case-insensitively and allow for a localized name (this instance's issue types already are, e.g.
@@ -214,6 +232,9 @@ to the scaffolded .gitignore" becomes
 `CZ3TDR1-590-shoptet-init-add-node-modules-to-the-scaffolded-gitignore`. State this exact branch
 name, and the worktree path `./worktrees/<that-branch-name>` per the rule above, in the dispatch
 below.
+
+**`skip Jira`:** there is no issue key or title to build this from. Name the branch
+`todo-<n>-<slug>`, with `<slug>` built the same way from the TODO item's own text.
 
 Invoke `superpowers:subagent-driven-development` on the confirmed plan, stating the branch name and
 worktree path computed above for its setup step to use. Let it run to completion per its own rules
@@ -245,6 +266,9 @@ question, and only with this one option.
 Compose the PR body so it links the Jira issue from step 2 — e.g. a line like
 `Resolves <ISSUE-KEY>: <issue URL>` — since `finishing-a-development-branch`'s own template has no
 notion of Jira. Report the created PR's URL once it exists.
+
+**`skip Jira`:** there is no issue to link — omit the `Resolves` line and the transition below
+entirely.
 
 Once the PR exists, move the Jira issue to its review status the same best-effort way as step 5:
 call `getTransitionsForJiraIssue` again and pick the transition whose name best matches "review"
