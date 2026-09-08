@@ -162,7 +162,10 @@ the remaining four on the next run.
 
 **The issue.** Invoke `zibby:jira` per chunk with: the chunk's text (including its proof and its
 consumes/produces contract — the implementer reads the issue, not this conversation), the research
-from step 5, the proposed type, and the parent key. Pass this run's autonomy level through (`confirm` for `confirm`,
+from step 5, the proposed type, the parent key, and `sprint: none` — a backlog is filed to be worked
+through later, and a whole epic landing in the active sprint at once is nobody's intent;
+`zibby:todo-driven-development` assigns the sprint per item, when it starts implementing that
+item. Pass this run's autonomy level through (`confirm` for `confirm`,
 `auto` for `auto`, `unattended` for `unattended`) so it doesn't ask per chunk what this run already
 answered once. Its duplicate check is never pre-answered — let it ask, per its own rules.
 

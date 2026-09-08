@@ -58,9 +58,11 @@ to you:
 - `gh` — `zibby:todo-driven-development` opens pull requests with it.
 - **Atlassian MCP server**, authenticated — `zibby:jira` needs it. Log in with `/mcp`.
 - A `jira:` key in `.zibby/zibby-skills/config.yml` at the root of each repo you file issues from,
-  naming the target board, site, issue types and labels. `issueTypes` names the `task`, `bug` and
-  `parent` (epic-level) type names for that instance; the older single `issueType` key still works
-  and is read as the `task` type.
+  naming the target board, site, issue types, sprint policy and labels. `issueTypes` names the
+  `task`, `bug` and `parent` (epic-level) type names for that instance; the older single `issueType`
+  key still works and is read as the `task` type. `sprint` (`current` or `none`, default `none`)
+  says whether newly filed issues land in the board's current sprint — `zibby:todo-driven-development`
+  assigns it per item when it starts implementing, regardless of this key.
 
 ## Uninstall
 
@@ -79,7 +81,7 @@ from `skills/`.
 .claude-plugin/marketplace.json   marketplace zibby-skills, one entry
 .claude-plugin/plugin.json        plugin zibby, declares the superpowers dependency
 skills/todo/                      SKILL.md + scripts/todo.py
-skills/jira/
+skills/jira/                      SKILL.md + references/sprint.md
 skills/plan-to-backlog/           SKILL.md + references/chunking.md
 skills/todo-driven-development/
 install.sh

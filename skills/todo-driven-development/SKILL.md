@@ -162,7 +162,10 @@ Then continue at step 3 with the fetched issue's key, URL and description.
 issue key, URL, or drafted description. Go straight to step 4, writing the spec file described there
 from the item's text directly instead of a Jira description.
 
-Otherwise, invoke the `zibby:jira` skill with the item's text as input.
+Otherwise, invoke the `zibby:jira` skill with the item's text as input, passing `sprint: none`
+explicitly whatever this repo's config says. The sprint is set in step 5, when implementation
+actually starts — which is also the only place it can be set for an item that arrived here with an
+issue `zibby:plan-to-backlog` filed earlier, since that branch creates nothing.
 
 **One-item, range, and whole-backlog modes:** pass the autonomy level chosen at the top of the run,
 explicitly — `confirm` for `review`, `auto` for `auto` — so `zibby:jira` doesn't ask its own
@@ -261,6 +264,16 @@ category, use that one instead. Call `transitionJiraIssue` with the chosen trans
 best-effort: no confident match, or a failed call, gets noted (a ledger row in unattended mode, a
 mention to the user otherwise) and the item proceeds regardless — a wrong or missing Jira status is
 a one-click fix later, never a reason to stop or fail the item.
+
+Then put the issue into the board's **current sprint**, following `zibby:jira`'s
+`references/sprint.md`: resolve the Sprint field id and the current sprint's id (steps 1 and 2 of
+that file), then apply it with `editJiraIssue` on the issue key (step 3's second path — the issue
+already exists here, whether this run filed it in step 2 or `zibby:plan-to-backlog` filed it weeks
+ago). This is the same best-effort deal as the transition above and carries the same rules: an
+unresolvable field, a board with no active sprint, or a rejected call gets noted (a ledger row in
+unattended mode, a mention to the user otherwise) and the item proceeds regardless. It happens here
+rather than at filing time because an issue in the current sprint is a claim that the work is
+being done now, and that only becomes true at this step.
 
 Also before dispatching, name the branch to match Jira's own convention rather than letting
 `subagent-driven-development`'s setup step invent one: `<ISSUE-KEY>-<slug>`, where `<slug>` is the

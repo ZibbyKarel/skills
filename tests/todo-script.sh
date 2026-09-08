@@ -127,4 +127,78 @@ todo undone 2 >/dev/null
 expect "undone keeps the ref, flips only the box" \
   "2. [ ] Sectioned item ([42](https://example.test/pull/42))" "$(tail -1 "$work/TODO.md")"
 
+# --- `add --under` files a lettered sub-item directly under its parent ----------------------
+reset_repo
+todo add "Parent item" >/dev/null
+todo add "First child" --under 1 >/dev/null
+todo add "Second child" --under 1 >/dev/null
+expect_file "sub-items nest right under the parent, lettered in order" "$(cat <<'EOF'
+# TODO
+
+1. [ ] Parent item
+   a. [ ] First child
+   b. [ ] Second child
+EOF
+)"
+
+# --- `list` renders the nested tree, `show` on a parent surfaces every child -----------------
+expect "list shows the nested tree" "1. [ ] Parent item
+   a. [ ] First child
+   b. [ ] Second child" "$(todo list)"
+expect "show on a parent prints its own text plus every child's" "Parent item
+  a. First child
+  b. Second child" "$(todo show 1)"
+expect "show on a sub-item prints only that sub-item's text" "First child" "$(todo show 1.a)"
+
+# --- bottom-up: closing every child auto-closes the parent -----------------------------------
+todo done 1.a >/dev/null
+expect "parent stays open while a sibling is still pending" \
+  "1. [ ] Parent item" "$(sed -n '3p' "$work/TODO.md")"
+todo done 1.b >/dev/null
+expect_file "closing the last child auto-closes the parent" "$(cat <<'EOF'
+# TODO
+
+1. [x] Parent item
+   a. [x] First child
+   b. [x] Second child
+EOF
+)"
+
+# --- bottom-up: reopening a child auto-reopens the parent ------------------------------------
+todo undone 1.a >/dev/null
+expect "reopening one child reopens the auto-closed parent" \
+  "1. [ ] Parent item" "$(sed -n '3p' "$work/TODO.md")"
+
+# --- top-down: closing the parent cascades the same ref to every open child ------------------
+reset_repo
+todo add "Parent item" >/dev/null
+todo add "First child" --under 1 >/dev/null
+todo add "Second child" --under 1 >/dev/null
+todo done 1 "https://example.test/pull/99" >/dev/null
+expect_file "done on the parent closes every child with the same ref" "$(cat <<'EOF'
+# TODO
+
+1. [x] Parent item ([99](https://example.test/pull/99))
+   a. [x] First child ([99](https://example.test/pull/99))
+   b. [x] Second child ([99](https://example.test/pull/99))
+EOF
+)"
+
+# --- top-down: reopening the parent cascades to every child ----------------------------------
+todo undone 1 >/dev/null
+expect_file "undone on the parent reopens every child too" "$(cat <<'EOF'
+# TODO
+
+1. [ ] Parent item ([99](https://example.test/pull/99))
+   a. [ ] First child ([99](https://example.test/pull/99))
+   b. [ ] Second child ([99](https://example.test/pull/99))
+EOF
+)"
+
+# --- `next` only ever reports top-level items, never a bare sub-item -------------------------
+reset_repo
+todo add "Parent item" >/dev/null
+todo add "Only child" --under 1 >/dev/null
+expect "next reports the parent, not the open child" "1. Parent item" "$(todo next)"
+
 exit $fail

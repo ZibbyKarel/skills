@@ -1,7 +1,7 @@
 ---
 name: todo
 description: "Manage a project's TODO.md checklist — add an item, list items, mark one done or undone, or find the next pending one. Use this whenever the user wants to track personal backlog items for the current project, whether they type an explicit /todo command or just say something like 'add this to my todo list', 'what's on my todo', 'what should I work on next', or 'mark item 3 as done' — they don't need to say 'TODO.md' or name the file explicitly. This is a personal, cross-project tool — it always operates on the TODO.md at the root of whatever git repo the user is currently in, creating the file the first time it's needed."
-argument-hint: "add \"<text>\" [--ref <url>] [--section \"<heading>\"] | list | next | show <n> | done <n> [ref] | undone <n>"
+argument-hint: "add \"<text>\" [--ref <url>] [--section \"<heading>\"] [--under <n>] | list | next | show <id> | done <id> [ref] | undone <id>"
 ---
 
 # todo
@@ -12,6 +12,10 @@ finds the file at the root of the current git repo (`git rev-parse --show-toplev
 to the current directory outside a repo), creates it on first write, and keeps a stable,
 line-order numbering scheme so `list`/`next`/`show`/`done`/`undone` all agree on what "item 3"
 means.
+
+An item can carry lettered sub-items (`4.a`, `4.b`, ...) for a checklist that's naturally one unit
+of work broken into parts — see "Sub-items" below. Anywhere this table says `<id>`, that means
+either a bare number (`4`) or a sub-item (`4.a`).
 
 ```bash
 python3 ${CLAUDE_PLUGIN_ROOT}/skills/todo/scripts/todo.py <command> [args]
@@ -24,11 +28,15 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/todo/scripts/todo.py <command> [args]
 | `add "<text>"` | Appends `N. [ ] <text>` to TODO.md (N is the next sequential number), creating the file (with a `# TODO` header) if it doesn't exist yet. |
 | `add "<text>" --ref <url>` | Same, with the ref appended in the same link format `done` uses — so a **pending** item can already point at the Jira issue that describes it. This is what `zibby:plan-to-backlog` uses to leave a short summary in TODO.md while the full description lives in the issue. |
 | `add "<text>" --section "<heading>"` | Files the item at the end of the named `##` section, creating that section at the end of the file if it isn't there. Sections are matched by the **issue key** their heading contains (e.g. `CZ3TDR1-500`), falling back to exact heading text when there is no key — so a re-run under a reworded epic title still lands in the existing section instead of starting a second one. |
-| `list` | Prints every item, numbered 1..N in file order — **both done and pending** count toward the numbering, so a number always points at the same line regardless of what else has been checked off. |
-| `next` | Prints the number and text of the first unchecked item, or `no pending items`. Use this to drive "work through the whole list" flows without the caller tracking state itself. |
-| `show <n>` | Prints just the text of item `n`. |
-| `done <n> [ref]` | Checks off item `n`. If `ref` is a URL, it's appended as a markdown link labeled with the URL's last path segment (e.g. a Jira `.../browse/CZ3TDR1-582` link renders as `([CZ3TDR1-582](...))`); a non-URL `ref` is appended in plain parentheses. Omit `ref` for a plain checkbox flip. |
-| `undone <n>` | Reverts item `n` to unchecked, e.g. to correct a mistaken `done`. |
+| `add "<text>" --under <n>` | Files the item as a new lettered sub-item directly under parent `n` (e.g. `4.a`, then `4.b`), taking the next free letter. Mutually exclusive with `--section`. |
+| `list` | Prints every item as a nested tree — each parent, then its sub-items indented under it — numbered/lettered in file order. **Both done and pending** count toward the numbering, so an id always points at the same line regardless of what else has been checked off. |
+| `next` | Prints the number and text of the first unchecked **top-level** item, or `no pending items`. Never returns a bare sub-item — a parent with open sub-items is still "next" until it and all its children are done. Use this to drive "work through the whole list" flows without the caller tracking state itself. |
+| `show <n>` | Prints item `n`'s text. If `n` has sub-items, also prints each of their texts, lettered — so "implement item 4" surfaces the whole unit of work in one call. |
+| `show <n>.<letter>` | Prints just that one sub-item's text. |
+| `done <n> [ref]` | Checks off item `n` **and cascades the same `ref` to every still-open sub-item** — closing a parent means the whole unit of work, children included, is done. |
+| `done <n>.<letter> [ref]` | Checks off just that sub-item. Once every sibling under `n` is checked, the parent auto-checks too (no `ref` attached to that auto-check — the ref belongs to whichever sub-item command actually closed things out). |
+| `undone <n>` | Reverts item `n` **and every one of its sub-items** to unchecked, e.g. to correct a mistaken `done`. |
+| `undone <n>.<letter>` | Reverts just that sub-item to unchecked. If the parent had been checked (including auto-checked), it's reopened too. |
 
 ## Using it from natural language
 
@@ -60,3 +68,25 @@ file is the source of truth for what's pending.
   causes. `tests/todo-script.sh` pins that.
 - `done`'s `ref` argument is meant for exactly one thing: recording what closed the item (a Jira
   issue, a PR) without turning TODO.md into a project tracker of its own. Keep it to one link.
+
+## Sub-items
+
+A parent's sub-items are the `   a. [ ]` / `   b. [ ]` lines (3-space indent) immediately
+following its own line, with nothing in between — no blank line, no other content. That
+adjacency, not the indentation alone, is what makes a line count as a sub-item of the item right
+above it:
+
+```
+4. [ ] doplnit do plánu phase-3 jako release blockery:
+   a. [ ] sepsání seznamu url na dokumentaci...
+   b. [ ] ověření kompletní funkcionality CLI na windows...
+```
+
+Letters are recomputed from scratch on every write, the same way top-level numbers are — so they
+stay `a, b, c...` in file order even if sub-items are added, closed, or reopened out of order.
+There's no support for more than 26 sub-items under one parent (`add --under` errors out past
+`z`); that's a sign the parent should be split into separate top-level items instead.
+
+Sub-items only exist to give one unit of work addressable, individually-checkable parts. `next`
+and whole-backlog flows (e.g. `zibby:todo-driven-development`) still operate on top-level items
+only — a parent with sub-items is one round of implementation, not several.

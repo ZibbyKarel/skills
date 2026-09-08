@@ -43,6 +43,8 @@ check_present 'zibby:todo'                     skills/plan-to-backlog/SKILL.md  
 check_present 'zibby:plan-to-backlog'          skills/todo-driven-development/SKILL.md 'tdd knows about zibby:plan-to-backlog'
 check_present 'CLAUDE_PLUGIN_ROOT'             skills/plan-to-backlog/SKILL.md         'plan-to-backlog todo path is plugin-relative'
 check_present 'chunking\.md'                    skills/plan-to-backlog/SKILL.md         'plan-to-backlog reads its chunking rules'
+check_present 'references/sprint\.md'          skills/jira/SKILL.md                    'jira reads its sprint procedure'
+check_present 'references/sprint\.md'          skills/todo-driven-development/SKILL.md 'tdd reads the same sprint procedure'
 check_present 'Unverified'                     skills/plan-to-backlog/SKILL.md         'the Blocks-direction caveat is still recorded'
 
 # The reference file the granularity rule lives in must exist — the skill has no other rule.
@@ -50,6 +52,15 @@ if [[ -f skills/plan-to-backlog/references/chunking.md ]]; then
   echo "ok:   chunking rules file present"
 else
   echo "FAIL: chunking rules file present"
+  fail=1
+fi
+
+# Two skills point at the sprint procedure; if the file goes missing they both silently improvise
+# a custom field id, which is the one thing it exists to forbid.
+if [[ -f skills/jira/references/sprint.md ]]; then
+  echo "ok:   sprint procedure file present"
+else
+  echo "FAIL: sprint procedure file present"
   fail=1
 fi
 

@@ -1,7 +1,7 @@
 ---
 name: jira
 description: "Create a Jira issue in the current project's board from any input — a TODO.md line, a bug report, a Slack message, a vague one-liner. Reads the target board/site/issue-types/labels from a 'jira:' key in this repo's `.zibby/zibby-skills/config.yml`, researches the actual codebase for relevant files and functions to ground the description in fact rather than restating the input, checks for likely duplicates before creating, and reports back the created issue's key and URL. Use this whenever the user asks to file/create/open a Jira issue or ticket for something, not only when working through a TODO.md — it accepts anything describing a piece of work."
-argument-hint: "<description of the work to file as a Jira issue> [parent: <ISSUE-KEY>]"
+argument-hint: "<description of the work to file as a Jira issue> [parent: <ISSUE-KEY>] [sprint: current|none]"
 ---
 
 # jira
@@ -47,6 +47,7 @@ jira:
     bug: Bug
     parent: Epic
   team: CZ3-DEVREL
+  sprint: none
   labels:
     - shoptet-addon-cli
 ```
@@ -65,6 +66,13 @@ jira:
   before `issueTypes` existed keep working unchanged; don't rewrite them unless the user asks.
 - `team` (optional) — the Jira Team (e.g. `CZ3-DEVREL`) assigned to every issue this skill creates.
   Resolved to the field's actual id at create time — see step 7.
+- `sprint` (optional, default `none`) — whether issues this skill creates land in the board's
+  current sprint. `current` assigns it, `none` leaves the issue in the backlog. It defaults to
+  `none` deliberately: filing an issue is not the same as starting it, and a default of `current`
+  would drop a whole `zibby:plan-to-backlog` epic into the active sprint at once. A `sprint:`
+  argument on the invocation (a caller's, or the user's) overrides the config for that one issue —
+  `zibby:todo-driven-development` passes `sprint: none` here and assigns the sprint later, when it
+  actually starts implementing.
 - `labels` (optional) — a YAML list of labels always applied to issues this skill creates.
 
 If the file or the `jira:` key is missing entirely: tell the user this project has no Jira config
@@ -173,7 +181,7 @@ the wrong ticket. Both are worse than handing the decision back in the morning r
 ## 6. Confirm (only at autonomy level `confirm`)
 
 Show the drafted title, description, issue type (and, if you overrode a proposed one, why),
-parent, labels, team, and assignee. Apply any edits the
+parent, labels, team, sprint, and assignee. Apply any edits the
 user asks for. Skip this step entirely at `auto` and `unattended`.
 
 ## 7. Create the issue
@@ -187,18 +195,28 @@ create the field's value from the string: tell the user (interactive) or note it
 `team` (unattended) — a team-less issue is a one-click morning fix, and guessing an id risks
 assigning the issue to the wrong team silently.
 
+If this issue is to land in the current sprint — a `sprint: current` argument, or `sprint: current`
+in the config with no argument overriding it — resolve the Sprint field id and the current sprint's
+id now, following `references/sprint.md` (steps 1 and 2), and add the field to
+`additional_fields` below. The `getJiraIssueTypeMetaWithFields` call above already returns every
+field on this issue type, Sprint included — read it out of that same response rather than calling
+the metadata endpoint a second time. That procedure is best-effort by design: an unresolvable field or an
+ambiguous "current" is noted in the report and the issue is created without a sprint, never a
+guessed one and never a failed create. With `sprint: none` (the default), skip this entirely.
+
 Call `createJiraIssue` with `cloudId` (the `site` value), `projectKey` (`board`), `issueTypeName`
 (the type from step 4b), `summary` (the drafted title), `description`, `assignee_account_id`, and
 `additional_fields` built from the config's `labels` plus any the user asked to add, the resolved
-`team` field/id if one was found, and — if step 4c resolved a parent — `parent: {"key":
-"<PARENT-KEY>"}`. `parent` is the system field (`{"type": "issuelink", "system": "parent"}`); there
+`team` field/id if one was found, the resolved sprint field/id if one was found, and — if step 4c
+resolved a parent — `parent: {"key": "<PARENT-KEY>"}`. `parent` is the system field (`{"type": "issuelink", "system": "parent"}`); there
 is no separate "Epic Link" custom field to set on a modern Jira Cloud project, so don't look for
 one.
 
 ## 8. Report the result
 
-State the created (or reused) issue's key, its type, its parent if it has one, and its `webUrl`
-plainly, e.g.
+State the created (or reused) issue's key, its type, its parent if it has one, its sprint if one
+was assigned (by name, and say so plainly if `sprint: current` was asked for but couldn't be
+resolved), and its `webUrl` plainly, e.g.
 `Created CZ3TDR1-583: https://teamdotblue.atlassian.net/browse/CZ3TDR1-583` — a caller like
 `zibby:todo-driven-development` needs exactly this to link the item back with `todo done <n> <url>` and,
 later, in a PR description.
