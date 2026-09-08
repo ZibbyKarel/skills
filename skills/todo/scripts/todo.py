@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from urllib.parse import urlsplit
 
-ITEM_RE = re.compile(r"^([-*]) \[([ xX])\] (.*)$")
+ITEM_RE = re.compile(r"^(?:[-*]|\d+\.) \[([ xX])\] (.*)$")
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
 ISSUE_KEY_RE = re.compile(r"\b([A-Z][A-Z0-9]*-\d+)\b")
 HEADER = "# TODO\n"
@@ -35,18 +35,31 @@ def read_lines(path: Path) -> list[str]:
     return path.read_text(encoding="utf-8").splitlines(keepends=True)
 
 
-def find_items(lines: list[str]) -> list[tuple[int, str, bool, str]]:
-    """Returns (line_index, bullet_char, checked, text) for every checklist line, in file order.
+def find_items(lines: list[str]) -> list[tuple[int, bool, str]]:
+    """Returns (line_index, checked, text) for every checklist line, in file order.
 
     Headings are invisible here on purpose: item numbers stay positional over the whole file, so
-    inserting a section heading never renumbers the items below it.
+    inserting a section heading never renumbers the items below it. A legacy `-`/`*` bullet still
+    counts as an item so old TODO.md files keep working, but any line this script writes uses the
+    numbered `N. [ ]` form (see `renumber_all`).
     """
     items = []
     for i, line in enumerate(lines):
         m = ITEM_RE.match(line.rstrip("\r\n"))
         if m:
-            items.append((i, m.group(1), m.group(2).lower() == "x", m.group(3)))
+            items.append((i, m.group(1).lower() == "x", m.group(2)))
     return items
+
+
+def renumber_all(lines: list[str]) -> None:
+    """Rewrites every checklist line in place as `N. [ ]`/`N. [x]`, N counting file order.
+
+    Called after any insertion, since that's the only operation that can shift what number a
+    line other than the one just touched should have.
+    """
+    for n, (idx, checked, text) in enumerate(find_items(lines), start=1):
+        mark = "x" if checked else " "
+        lines[idx] = f"{n}. [{mark}] {text}\n"
 
 
 def _heading(line: str) -> tuple[int, str] | None:
@@ -120,8 +133,9 @@ def cmd_add(path: Path, text: str, ref: str | None, section: str | None) -> None
             lines.append(item)
             note = f" (new section: {heading})"
 
+    renumber_all(lines)
     path.write_text("".join(lines), encoding="utf-8")
-    n = next(k for k, (idx, _, _, _) in enumerate(find_items(lines), start=1) if idx == insert_at)
+    n = next(k for k, (idx, _, _) in enumerate(find_items(lines), start=1) if idx == insert_at)
     print(f"added #{n}: {text}{_ref_suffix(ref)}{note}")
 
 
@@ -130,14 +144,14 @@ def cmd_list(path: Path) -> None:
     if not items:
         print("no items in TODO.md")
         return
-    for n, (_, _, checked, text) in enumerate(items, start=1):
+    for n, (_, checked, text) in enumerate(items, start=1):
         mark = "x" if checked else " "
         print(f"{n}. [{mark}] {text}")
 
 
 def cmd_next(path: Path) -> None:
     items = find_items(read_lines(path))
-    for n, (_, _, checked, text) in enumerate(items, start=1):
+    for n, (_, checked, text) in enumerate(items, start=1):
         if not checked:
             print(f"{n}. {text}")
             return
@@ -148,7 +162,7 @@ def cmd_show(path: Path, n: int) -> None:
     items = find_items(read_lines(path))
     if not 1 <= n <= len(items):
         sys.exit(f"item {n} does not exist ({len(items)} item(s) total)")
-    print(items[n - 1][3])
+    print(items[n - 1][2])
 
 
 def _ref_suffix(ref: str | None) -> str:
@@ -166,8 +180,8 @@ def cmd_done(path: Path, n: int, ref: str | None) -> None:
     items = find_items(lines)
     if not 1 <= n <= len(items):
         sys.exit(f"item {n} does not exist ({len(items)} item(s) total)")
-    line_idx, bullet, _, text = items[n - 1]
-    lines[line_idx] = f"{bullet} [x] {text}{_ref_suffix(ref)}\n"
+    line_idx, _, text = items[n - 1]
+    lines[line_idx] = f"{n}. [x] {text}{_ref_suffix(ref)}\n"
     path.write_text("".join(lines), encoding="utf-8")
     print(f"done #{n}: {text}{_ref_suffix(ref)}")
 
@@ -177,8 +191,8 @@ def cmd_undone(path: Path, n: int) -> None:
     items = find_items(lines)
     if not 1 <= n <= len(items):
         sys.exit(f"item {n} does not exist ({len(items)} item(s) total)")
-    line_idx, bullet, _, text = items[n - 1]
-    lines[line_idx] = f"{bullet} [ ] {text}\n"
+    line_idx, _, text = items[n - 1]
+    lines[line_idx] = f"{n}. [ ] {text}\n"
     path.write_text("".join(lines), encoding="utf-8")
     print(f"undone #{n}: {text}")
 

@@ -50,13 +50,13 @@ todo done 2 "https://teamdotblue.atlassian.net/browse/CZ3TDR1-602" >/dev/null
 pending="$(sed -n '3p' "$work/TODO.md")"
 closed="$(sed -n '4p' "$work/TODO.md")"
 expect "add --ref link format" \
-  "- [ ] First item ([CZ3TDR1-601](https://teamdotblue.atlassian.net/browse/CZ3TDR1-601))" "$pending"
+  "1. [ ] First item ([CZ3TDR1-601](https://teamdotblue.atlassian.net/browse/CZ3TDR1-601))" "$pending"
 expect "done ref link format unchanged" \
-  "- [x] Second item ([CZ3TDR1-602](https://teamdotblue.atlassian.net/browse/CZ3TDR1-602))" "$closed"
+  "2. [x] Second item ([CZ3TDR1-602](https://teamdotblue.atlassian.net/browse/CZ3TDR1-602))" "$closed"
 
 reset_repo
 todo add "Plain ref" --ref "see ADR 0064" >/dev/null
-expect "add --ref non-URL" "- [ ] Plain ref (see ADR 0064)" "$(sed -n '3p' "$work/TODO.md")"
+expect "add --ref non-URL" "1. [ ] Plain ref (see ADR 0064)" "$(sed -n '3p' "$work/TODO.md")"
 
 # --- add --section creates the section, then files into it ----------------------------------
 reset_repo
@@ -67,8 +67,8 @@ expect_file "section created once, both items under it" "$(cat <<'EOF'
 
 ## Phase Portal ([CZ3TDR1-500](https://example.test/browse/CZ3TDR1-500))
 
-- [ ] Chunk one
-- [ ] Chunk two
+1. [ ] Chunk one
+2. [ ] Chunk two
 EOF
 )"
 
@@ -79,9 +79,9 @@ expect_file "reworded heading still matches on the issue key" "$(cat <<'EOF'
 
 ## Phase Portal ([CZ3TDR1-500](https://example.test/browse/CZ3TDR1-500))
 
-- [ ] Chunk one
-- [ ] Chunk two
-- [ ] Chunk three
+1. [ ] Chunk one
+2. [ ] Chunk two
+3. [ ] Chunk three
 EOF
 )"
 
@@ -95,12 +95,12 @@ expect_file "insert lands at the end of its own section" "$(cat <<'EOF'
 
 ## Epic A ([AAA-1](https://example.test/browse/AAA-1))
 
-- [ ] A1
-- [ ] A2
+1. [ ] A1
+2. [ ] A2
 
 ## Epic B ([BBB-2](https://example.test/browse/BBB-2))
 
-- [ ] B1
+3. [ ] B1
 EOF
 )"
 expect "numbering follows file order across sections" "1. [ ] A1
@@ -120,11 +120,11 @@ expect "next skips the closed item, headings and all" "2. Sectioned item" "$(tod
 # --- done/undone still address the right line once sections exist ---------------------------
 todo done 2 "https://example.test/pull/42" >/dev/null
 expect "done inside a section" \
-  "- [x] Sectioned item ([42](https://example.test/pull/42))" "$(tail -1 "$work/TODO.md")"
+  "2. [x] Sectioned item ([42](https://example.test/pull/42))" "$(tail -1 "$work/TODO.md")"
 # `undone` only flips the checkbox — the ref stays, which is now a legitimate state for a
 # pending item since `add --ref` puts one there in the first place.
 todo undone 2 >/dev/null
 expect "undone keeps the ref, flips only the box" \
-  "- [ ] Sectioned item ([42](https://example.test/pull/42))" "$(tail -1 "$work/TODO.md")"
+  "2. [ ] Sectioned item ([42](https://example.test/pull/42))" "$(tail -1 "$work/TODO.md")"
 
 exit $fail
