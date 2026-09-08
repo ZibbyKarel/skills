@@ -11,7 +11,10 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 ITEM_RE = re.compile(r"^([-*]) \[([ xX])\] (.*)$")
+HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
+ISSUE_KEY_RE = re.compile(r"\b([A-Z][A-Z0-9]*-\d+)\b")
 HEADER = "# TODO\n"
+SECTION_LEVEL = 2
 
 
 def find_todo_path() -> Path:
@@ -33,7 +36,11 @@ def read_lines(path: Path) -> list[str]:
 
 
 def find_items(lines: list[str]) -> list[tuple[int, str, bool, str]]:
-    """Returns (line_index, bullet_char, checked, text) for every checklist line, in file order."""
+    """Returns (line_index, bullet_char, checked, text) for every checklist line, in file order.
+
+    Headings are invisible here on purpose: item numbers stay positional over the whole file, so
+    inserting a section heading never renumbers the items below it.
+    """
     items = []
     for i, line in enumerate(lines):
         m = ITEM_RE.match(line.rstrip("\r\n"))
@@ -42,16 +49,80 @@ def find_items(lines: list[str]) -> list[tuple[int, str, bool, str]]:
     return items
 
 
-def cmd_add(path: Path, text: str) -> None:
+def _heading(line: str) -> tuple[int, str] | None:
+    """Returns (level, text) for a Markdown ATX heading line, else None."""
+    m = HEADING_RE.match(line.rstrip("\r\n"))
+    if not m:
+        return None
+    return len(m.group(1)), m.group(2)
+
+
+def _section_matches(existing: str, wanted: str) -> bool:
+    """A section is identified by the issue key in its heading, falling back to its exact text.
+
+    The key is what survives a reworded epic title, which is why `zibby:plan-to-backlog` puts it
+    in the heading in the first place.
+    """
+    wanted_key = ISSUE_KEY_RE.search(wanted)
+    if wanted_key:
+        return wanted_key.group(1) in ISSUE_KEY_RE.findall(existing)
+    return existing.strip() == wanted.strip()
+
+
+def find_section(lines: list[str], section: str) -> tuple[int, int] | None:
+    """Returns (heading_index, insert_index) for the named section, or None if it isn't there.
+
+    `insert_index` is where a new item belongs: after the section's last item, before the blank
+    lines that separate it from whatever heading comes next.
+    """
+    for i, line in enumerate(lines):
+        head = _heading(line)
+        if not head or not _section_matches(head[1], section):
+            continue
+        level = head[0]
+        end = len(lines)
+        for j in range(i + 1, len(lines)):
+            nxt = _heading(lines[j])
+            if nxt and nxt[0] <= level:
+                end = j
+                break
+        while end > i + 1 and lines[end - 1].strip() == "":
+            end -= 1
+        return i, end
+    return None
+
+
+def cmd_add(path: Path, text: str, ref: str | None, section: str | None) -> None:
     lines = read_lines(path)
     if not lines:
         lines = [HEADER, "\n"]
     if lines and not lines[-1].endswith("\n"):
         lines[-1] += "\n"
-    lines.append(f"- [ ] {text}\n")
+
+    item = f"- [ ] {text}{_ref_suffix(ref)}\n"
+    note = ""
+
+    if section is None:
+        insert_at = len(lines)
+        lines.append(item)
+    else:
+        found = find_section(lines, section)
+        if found:
+            insert_at = found[1]
+            lines.insert(insert_at, item)
+        else:
+            heading = section.strip().lstrip("#").strip()
+            if lines[-1].strip() != "":
+                lines.append("\n")
+            lines.append(f"{'#' * SECTION_LEVEL} {heading}\n")
+            lines.append("\n")
+            insert_at = len(lines)
+            lines.append(item)
+            note = f" (new section: {heading})"
+
     path.write_text("".join(lines), encoding="utf-8")
-    items = find_items(lines)
-    print(f"added #{len(items)}: {text}")
+    n = next(k for k, (idx, _, _, _) in enumerate(find_items(lines), start=1) if idx == insert_at)
+    print(f"added #{n}: {text}{_ref_suffix(ref)}{note}")
 
 
 def cmd_list(path: Path) -> None:
@@ -118,6 +189,11 @@ def main() -> None:
 
     p_add = sub.add_parser("add")
     p_add.add_argument("text")
+    p_add.add_argument("--ref", default=None,
+                       help="a URL or plain reference appended to the item, same format as `done`")
+    p_add.add_argument("--section", default=None,
+                       help="heading text to file the item under; matched by the issue key it "
+                            "contains, and created at the end of the file if absent")
 
     sub.add_parser("list")
     sub.add_parser("next")
@@ -136,7 +212,7 @@ def main() -> None:
     path = find_todo_path()
 
     if args.command == "add":
-        cmd_add(path, args.text)
+        cmd_add(path, args.text, args.ref, args.section)
     elif args.command == "list":
         cmd_list(path)
     elif args.command == "next":

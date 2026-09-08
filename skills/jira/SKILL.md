@@ -1,7 +1,7 @@
 ---
 name: jira
-description: "Create a Jira issue in the current project's board from any input — a TODO.md line, a bug report, a Slack message, a vague one-liner. Reads the target board/site/issue-type/labels from a 'jira:' key in this repo's `.zibby/zibby-skills/config.yml`, researches the actual codebase for relevant files and functions to ground the description in fact rather than restating the input, checks for likely duplicates before creating, and reports back the created issue's key and URL. Use this whenever the user asks to file/create/open a Jira issue or ticket for something, not only when working through a TODO.md — it accepts anything describing a piece of work."
-argument-hint: "<description of the work to file as a Jira issue>"
+description: "Create a Jira issue in the current project's board from any input — a TODO.md line, a bug report, a Slack message, a vague one-liner. Reads the target board/site/issue-types/labels from a 'jira:' key in this repo's `.zibby/zibby-skills/config.yml`, researches the actual codebase for relevant files and functions to ground the description in fact rather than restating the input, checks for likely duplicates before creating, and reports back the created issue's key and URL. Use this whenever the user asks to file/create/open a Jira issue or ticket for something, not only when working through a TODO.md — it accepts anything describing a piece of work."
+argument-hint: "<description of the work to file as a Jira issue> [parent: <ISSUE-KEY>]"
 ---
 
 # jira
@@ -29,6 +29,7 @@ question, never a guess:
 
 - `NO_CONFIG: <what is missing>` — the board configuration can't be resolved (step 2).
 - `DUPLICATE: <existing key> <existing url>` — a likely duplicate already exists (step 5).
+- `PARENT_MISMATCH: <details>` — a named parent can't legally hold this issue (step 4c).
 - `JIRA_UNAVAILABLE: <the error>` — an Atlassian call failed on auth, network, or permissions.
 
 Nothing gets created on any of these.
@@ -41,7 +42,10 @@ Read this repo's `.zibby/zibby-skills/config.yml` for a `jira:` key, e.g.:
 jira:
   board: CZ3TDR1
   site: teamdotblue.atlassian.net
-  issueType: Úkol
+  issueTypes:
+    task: Task
+    bug: Bug
+    parent: Epic
   team: CZ3-DEVREL
   labels:
     - shoptet-addon-cli
@@ -52,8 +56,13 @@ jira:
   Atlassian MCP tools (per their own instructions, the hostname works as a `cloudId` argument
   directly for most calls — fall back to `getAccessibleAtlassianResources` and match by URL only
   if a call rejects it).
-- `issueType` (optional) — the exact issue type name to pass as `issueTypeName`. This is
-  instance-specific and often localized (e.g. "Úkol", not "Task") — never assume "Task" works.
+- `issueTypes` (optional) — the exact issue type names for this instance, keyed by role:
+  `task`, `bug`, and `parent` (the epic-level type a `parent:` issue is created as, used only by
+  `zibby:plan-to-backlog`). These names are instance-specific and sometimes localized — one
+  project's `Task` is another's `Úkol` — so never assume an English name works.
+- `issueType` (optional, superseded) — the older single-type form. When `issueTypes` is absent,
+  this value is used as the `task` type and there is no `bug` or `parent` type. Configs written
+  before `issueTypes` existed keep working unchanged; don't rewrite them unless the user asks.
 - `team` (optional) — the Jira Team (e.g. `CZ3-DEVREL`) assigned to every issue this skill creates.
   Resolved to the field's actual id at create time — see step 7.
 - `labels` (optional) — a YAML list of labels always applied to issues this skill creates.
@@ -62,22 +71,25 @@ If the file or the `jira:` key is missing entirely: tell the user this project h
 yet and ask whether they want to create one now.
 
 - **Yes** — walk through each item this skill can read from the config, one at a time: `board`,
-  `site`, `issueType` (call `getJiraProjectIssueTypesMetadata` first and show the available names
-  rather than asking blind), `team`, and `labels`, noting which are required (`board`, `site`) and
-  which are optional. Write the answers to `.zibby/zibby-skills/config.yml` under a `jira:` key
+  `site`, the `issueTypes` names for `task`, `bug` and `parent` (call
+  `getJiraProjectIssueTypesMetadata` first and show the available names rather than asking blind),
+  `team`, and `labels`, noting which are required (`board`, `site`) and which are optional. Write the answers to `.zibby/zibby-skills/config.yml` under a `jira:` key
   (creating the `.zibby/zibby-skills/` directories first if they don't exist) so future runs don't
   need to ask.
 - **No** — ask for `board` and `site` for this run only and proceed without writing a file.
 
 If the config exists but is missing `board` or `site`, ask for the missing values now so this run
 can proceed, and offer to add them to the existing config file rather than starting the create flow
-above. If `issueType` is missing, call `getJiraProjectIssueTypesMetadata` for the project, show the
-available issue type names, ask the user which one to use, and mention they can add `issueType` to
-the config file to skip this question next time.
+above. If neither `issueTypes.task` nor `issueType` resolves, call `getJiraProjectIssueTypesMetadata`
+for the project, show the available issue type names, ask the user which one to use, and mention
+they can add `issueTypes` to the config file to skip this question next time. A missing
+`issueTypes.bug` is not a question: fall back to the task type and say so in the report — a bug
+filed as a task is a two-click fix, an invented type name is a failed call.
 
-**Unattended:** neither question may be asked. A missing `Board` or `Site` ends the run with
-`NO_CONFIG: <what is missing>`. A missing `IssueType` does too — guessing an issue type name on a
-localized instance is how a whole night's run fails identically eleven times.
+**Unattended:** neither question may be asked. A missing `board` or `site` ends the run with
+`NO_CONFIG: <what is missing>`. So does a project with no resolvable task type (`issueTypes.task`
+nor `issueType`) — guessing an issue type name on a localized instance is how a whole night's run
+fails identically eleven times.
 
 ## 3. Resolve the assignee
 
@@ -86,7 +98,14 @@ whoever is actually running the skill, not a hardcoded person.
 
 ## 4. Research the codebase before drafting
 
-The input describes a problem or task, not the issue's content — actually go look, but don't do the
+**If the caller handed over research already** — `zibby:plan-to-backlog` does, once per plan
+rather than once per chunk — do not dispatch a full pass over the same code again. Read what it
+gave you, and dispatch at most one *narrow* top-up for what this specific chunk needs and the
+shared pass didn't cover. Twelve chunks from one plan re-researching the same three directories is
+how filing a backlog costs more than implementing it. Say in the report that the research was
+supplied rather than gathered here.
+
+Otherwise the input describes a problem or task, not the issue's content — actually go look, but don't do the
 digging inline: dispatch it to a subagent with an explicit `model: "sonnet"` override, regardless of
 whatever model this session is otherwise running. Retrieval like this doesn't need the caller's own
 (possibly far more expensive) model, and letting it inherit that model here is how filing a handful
@@ -104,6 +123,39 @@ what comes back — don't ask the subagent to draft the issue text.
 Write the description as Markdown (the default `contentFormat`) with short sections as needed —
 typically a why, a what, and any file references — rather than one undifferentiated paragraph.
 
+## 4b. Decide the issue type from what the research found
+
+Pick `bug` or `task` (the config names from step 2) on one question: does this describe **existing
+code behaving wrongly**, or **work that doesn't exist yet**? Decide it from the research in step 4,
+not from the input's tone — "the search page feels slow" is a bug if the research found a
+regression and a task if it found a feature that was never built for that load.
+
+A caller may pass a **proposed** type (`zibby:plan-to-backlog` does, so its decomposition
+checkpoint can show one). The proposal is not binding: it comes from someone who read the plan,
+while you read the code. Override it when the research says otherwise, and **report that you did**,
+with the reason — a type silently flipped is a type nobody notices until the board is sorted by it.
+
+If the config has no `bug` type, use the task type and note it. Never invent a type name, and never
+use a subtask type here: `zibby:plan-to-backlog` handles hierarchy through `parent`.
+
+## 4c. Resolve the parent, if one was given
+
+A `parent:` argument (a caller's, or the user's) names an issue this one hangs under. Never guess
+one, and never create one here — that is `zibby:plan-to-backlog`'s job.
+
+Fetch the named issue with `getJiraIssue` and check its type's `hierarchyLevel` sits **above** the
+level of the type chosen in step 4b. `getJiraIssueTypeMetaWithFields` returns no `allowedValues`
+for the `parent` field on this kind of instance, so the check is yours to make — Jira enforces it
+server-side and rejects the create, which unattended reads as an unexplained failure.
+
+- Level above (e.g. `Epic` over `Task`) — pass it.
+- Same level or below (e.g. a `Task` named as the parent of a `Task`) — stop. Interactive: tell the
+  user the two real options (create an epic above it, or file these as subtasks of it) and let them
+  choose; never switch to a subtask type yourself, since subtasks behave differently in boards,
+  sprints and reports and a silently chosen hierarchy gets rearranged by hand later. Unattended:
+  return `PARENT_MISMATCH: <key> is <type> (level <n>), not above <child type>` and create nothing.
+- Not fetchable at all — `JIRA_UNAVAILABLE: <the error>`.
+
 ## 5. Check for a likely duplicate before creating
 
 Draft a title (a concise, imperative one-liner — the same bar as a good commit subject) and pull
@@ -120,7 +172,8 @@ the wrong ticket. Both are worse than handing the decision back in the morning r
 
 ## 6. Confirm (only at autonomy level `confirm`)
 
-Show the drafted title, description, issue type, labels, team, and assignee. Apply any edits the
+Show the drafted title, description, issue type (and, if you overrode a proposed one, why),
+parent, labels, team, and assignee. Apply any edits the
 user asks for. Skip this step entirely at `auto` and `unattended`.
 
 ## 7. Create the issue
@@ -134,14 +187,18 @@ create the field's value from the string: tell the user (interactive) or note it
 `team` (unattended) — a team-less issue is a one-click morning fix, and guessing an id risks
 assigning the issue to the wrong team silently.
 
-Call `createJiraIssue` with `cloudId` (the `Site` value), `projectKey` (`Board`), `issueTypeName`,
-`summary` (the drafted title), `description`, `assignee_account_id`, and `additional_fields` built
-from the config's `labels` plus any the user asked to add, and the resolved `team` field/id if one
-was found.
+Call `createJiraIssue` with `cloudId` (the `site` value), `projectKey` (`board`), `issueTypeName`
+(the type from step 4b), `summary` (the drafted title), `description`, `assignee_account_id`, and
+`additional_fields` built from the config's `labels` plus any the user asked to add, the resolved
+`team` field/id if one was found, and — if step 4c resolved a parent — `parent: {"key":
+"<PARENT-KEY>"}`. `parent` is the system field (`{"type": "issuelink", "system": "parent"}`); there
+is no separate "Epic Link" custom field to set on a modern Jira Cloud project, so don't look for
+one.
 
 ## 8. Report the result
 
-State the created (or reused) issue's key and `webUrl` plainly, e.g.
+State the created (or reused) issue's key, its type, its parent if it has one, and its `webUrl`
+plainly, e.g.
 `Created CZ3TDR1-583: https://teamdotblue.atlassian.net/browse/CZ3TDR1-583` — a caller like
 `zibby:todo-driven-development` needs exactly this to link the item back with `todo done <n> <url>` and,
 later, in a PR description.

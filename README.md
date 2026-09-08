@@ -1,16 +1,19 @@
 # zibby-skills
 
 A Claude Code marketplace holding one plugin, `zibby` — how I work: a TODO backlog, Jira issue
-creation, and the pipeline that drives a TODO item all the way to a draft PR.
+creation, cutting a written plan into a ready backlog, and the pipeline that drives a TODO item all
+the way to a draft PR.
 
 | Skill | What it does |
 |---|---|
 | `zibby:todo` | Manage the `TODO.md` at the root of whichever repo you're in. |
 | `zibby:jira` | Turn any description of work into a researched Jira issue. |
+| `zibby:plan-to-backlog` | Cut a written implementation plan into deliverable chunks: one Epic, an issue per chunk, `Blocks` links, and a short summary line per chunk in `TODO.md`. |
 | `zibby:todo-driven-development` | Drive a TODO item to a draft PR: issue → plan → implementation → PR. |
 
-The three install together — they are one way of working, not a menu, and the pipeline skill needs
-both others.
+The four install together — they are one way of working, not a menu. `zibby:plan-to-backlog` fills
+the backlog, `zibby:todo-driven-development` empties it, and both lean on `zibby:todo` and
+`zibby:jira`.
 
 ## Install
 
@@ -55,7 +58,9 @@ to you:
 - `gh` — `zibby:todo-driven-development` opens pull requests with it.
 - **Atlassian MCP server**, authenticated — `zibby:jira` needs it. Log in with `/mcp`.
 - A `jira:` key in `.zibby/zibby-skills/config.yml` at the root of each repo you file issues from,
-  naming the target board, site, issue type and labels.
+  naming the target board, site, issue types and labels. `issueTypes` names the `task`, `bug` and
+  `parent` (epic-level) type names for that instance; the older single `issueType` key still works
+  and is read as the `task` type.
 
 ## Uninstall
 
@@ -75,6 +80,7 @@ from `skills/`.
 .claude-plugin/plugin.json        plugin zibby, declares the superpowers dependency
 skills/todo/                      SKILL.md + scripts/todo.py
 skills/jira/
+skills/plan-to-backlog/           SKILL.md + references/chunking.md
 skills/todo-driven-development/
 install.sh
 tests/                            reference and install smoke checks
@@ -85,5 +91,6 @@ tests/                            reference and install smoke checks
 ```bash
 claude plugin validate .      # manifests
 ./tests/check-references.sh   # cross-skill references
+./tests/todo-script.sh        # todo.py behaviour, in a throwaway git repo
 ./tests/install-smoke.sh      # install into a throwaway project, then clean up
 ```

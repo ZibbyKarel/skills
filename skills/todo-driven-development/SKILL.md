@@ -6,7 +6,9 @@ argument-hint: "<item-number> | <start>-<end> | all | (<start>-<end> | all) --un
 
 # todo-driven-development
 
-Conducts three existing skills into one pipeline; it owns none of their logic. Depends on `zibby:todo`,
+Conducts three existing skills into one pipeline; it owns none of their logic. Items filed ahead
+of time by `zibby:plan-to-backlog` are picked up here with their issue reused, not re-filed
+(step 2). Depends on `zibby:todo`,
 `zibby:jira`, and the `superpowers` plugin (`writing-plans`, `subagent-driven-development`,
 `finishing-a-development-branch`) all being available — if `superpowers` isn't installed, say so and
 stop rather than reimplementing any part of it.
@@ -135,7 +137,26 @@ number in the span. For a still-pending `<n>`, use `todo show <n>` for its text,
 mode. When the span is exhausted, the run ends — there is no `todo next` call and no "no pending
 items" condition in this mode.
 
-### 2. File the Jira issue
+### 2. File the Jira issue — unless the item already has one
+
+**First, look at the item's text for an issue reference.** `zibby:plan-to-backlog` files issues up
+front and leaves each TODO.md line pointing at its own, so a line can arrive here already carrying
+`([CZ3TDR1-601](https://…/browse/CZ3TDR1-601))`. When it does:
+
+- Fetch it with `getJiraIssue`. Use **its** summary and description as this item's issue — skip
+  filing entirely, and skip the duplicate check with it: there is nothing heuristic to decide when
+  the key is written in the line verbatim.
+- If its status is in the **Done** category, do not implement anything. Report the item as
+  `skipped: <key> is already done` (a ledger row in unattended mode) and move on — a checked-off
+  issue with an unchecked TODO line means the two got out of sync, and the fix is a human looking
+  at which one is right, not a second implementation of finished work.
+- If the fetch fails, treat it as `JIRA_UNAVAILABLE` for this item rather than filing a new issue
+  around it — filing a second issue for work that already has one is the exact outcome this check
+  exists to prevent.
+- A ref that is **not** a Jira issue — a PR URL, or a path to a spec file from a `--skip-jira`
+  batch — is not an issue reference. Carry on with this step as written below.
+
+Then continue at step 3 with the fetched issue's key, URL and description.
 
 **If this run's autonomy level is `skip Jira`, skip this step and step 3 entirely** — there is no
 issue key, URL, or drafted description. Go straight to step 4, writing the spec file described there
@@ -170,8 +191,9 @@ Otherwise take its reported issue key, URL, and the description it drafted, and 
 ### 3. Save the issue as a spec
 
 `writing-plans` (next step) argues its plan from a spec file. Write one to
-`docs/superpowers/specs/<ISSUE-KEY>.md` containing the issue's title, its URL, and the full drafted
-description from step 2 — this is what carries the Jira link all the way through the plan into
+`docs/superpowers/specs/<ISSUE-KEY>.md` containing the issue's title, its URL, and the full
+description from step 2 — whether that description was just drafted or fetched from an issue
+`zibby:plan-to-backlog` filed earlier — this is what carries the Jira link all the way through the plan into
 every task an implementer sees, so don't skip or shorten it.
 
 **`skip Jira`:** there is no `<ISSUE-KEY>`. Name the file `docs/superpowers/specs/todo-<n>.md` (the

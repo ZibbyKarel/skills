@@ -5,7 +5,7 @@
     "email": "karel.zibar@team.blue"
   },
   "metadata": {
-    "description": "Personal Claude Code skills: TODO backlog, Jira issue creation, and the TODO-to-PR pipeline.",
+    "description": "Personal Claude Code skills: TODO backlog, Jira issue creation, plan-to-backlog decomposition, and the TODO-to-PR pipeline.",
     "version": "0.1.0"
   },
   "allowCrossMarketplaceDependenciesOn": ["claude-plugins-official"],
@@ -13,7 +13,7 @@
     {
       "name": "zibby",
       "source": "./",
-      "description": "How Karel works: TODO backlog, Jira issue creation, and the TODO-to-PR pipeline.",
+      "description": "How Karel works: TODO backlog, Jira issue creation, plan-to-backlog decomposition, and the TODO-to-PR pipeline.",
       "category": "productivity"
     }
   ]

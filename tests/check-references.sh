@@ -33,9 +33,40 @@ check_absent '<path-to-this-skill>'                'no <path-to-this-skill> plac
 check_present '^name: jira$'                    skills/jira/SKILL.md                    'jira skill renamed'
 check_present '^name: todo$'                    skills/todo/SKILL.md                    'todo skill name intact'
 check_present '^name: todo-driven-development$' skills/todo-driven-development/SKILL.md 'tdd skill name intact'
+check_present '^name: plan-to-backlog$'         skills/plan-to-backlog/SKILL.md         'plan-to-backlog skill name intact'
 check_present 'CLAUDE_PLUGIN_ROOT'              skills/todo/SKILL.md                    'todo script path is plugin-relative'
 check_present 'zibby:jira'                      skills/todo-driven-development/SKILL.md 'tdd points at zibby:jira'
 check_present 'zibby:todo'                      skills/todo-driven-development/SKILL.md 'tdd points at zibby:todo'
 check_present 'zibby:todo-driven-development'   skills/jira/SKILL.md                    'jira points at zibby:todo-driven-development'
+check_present 'zibby:jira'                     skills/plan-to-backlog/SKILL.md         'plan-to-backlog points at zibby:jira'
+check_present 'zibby:todo'                     skills/plan-to-backlog/SKILL.md         'plan-to-backlog points at zibby:todo'
+check_present 'zibby:plan-to-backlog'          skills/todo-driven-development/SKILL.md 'tdd knows about zibby:plan-to-backlog'
+check_present 'CLAUDE_PLUGIN_ROOT'             skills/plan-to-backlog/SKILL.md         'plan-to-backlog todo path is plugin-relative'
+check_present 'chunking\.md'                    skills/plan-to-backlog/SKILL.md         'plan-to-backlog reads its chunking rules'
+check_present 'Unverified'                     skills/plan-to-backlog/SKILL.md         'the Blocks-direction caveat is still recorded'
+
+# The reference file the granularity rule lives in must exist — the skill has no other rule.
+if [[ -f skills/plan-to-backlog/references/chunking.md ]]; then
+  echo "ok:   chunking rules file present"
+else
+  echo "FAIL: chunking rules file present"
+  fail=1
+fi
+
+# The chunking rules are a generic procedure. Naming a specific repo, PR number or phase letter
+# from someone else's project makes them unreadable for anyone who wasn't there.
+check_absent_in() {
+  local pattern="$1" file="$2" label="$3"
+  if grep -qnE "$pattern" "$file"; then
+    echo "FAIL: $label"
+    grep -nE "$pattern" "$file" | sed 's/^/    /'
+    fail=1
+  else
+    echo "ok:   $label"
+  fi
+}
+check_absent_in '(PR #[0-9]|Phase 2[a-z]\b|[a-z0-9-]+/[a-z0-9-]+-cli)' \
+  skills/plan-to-backlog/references/chunking.md \
+  'chunking rules stay generic (no foreign repo, PR or phase references)'
 
 exit $fail
