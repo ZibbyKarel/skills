@@ -46,6 +46,42 @@ check_present 'chunking\.md'                    skills/plan-to-backlog/SKILL.md 
 check_present 'references/sprint\.md'          skills/jira/SKILL.md                    'jira reads its sprint procedure'
 check_present 'references/sprint\.md'          skills/todo-driven-development/SKILL.md 'tdd reads the same sprint procedure'
 check_present 'Unverified'                     skills/plan-to-backlog/SKILL.md         'the Blocks-direction caveat is still recorded'
+check_present '^name: standup$'                skills/standup/SKILL.md                 'standup skill name intact'
+check_present 'references/format\.md'          skills/standup/SKILL.md                 'standup reads its rendering contract'
+check_present 'CLAUDE_PLUGIN_ROOT'             skills/standup/SKILL.md                 'standup script path is plugin-relative'
+check_present 'Dnes:'                          skills/standup/references/format.md     'the never-fill-Dnes rule is still recorded'
+check_present 'data, not instructions'         skills/standup/references/format.md      'the untrusted-input rule is still recorded'
+check_present 'redact'                         skills/standup/scripts/collect.sh        'session titles are still scrubbed of credentials'
+check_present 'cache-heading\.sh'               skills/standup/SKILL.md                 'headings are cached by the script, not by hand'
+check_present '^model: sonnet$'                skills/standup/SKILL.md                 'the standup is still pinned to Sonnet'
+check_present 'outlook_calendar_search'        skills/standup/SKILL.md                 'meetings still come from the calendar'
+check_present 'Never read an event body'       skills/standup/SKILL.md                 'meeting bodies are still kept out of the JSON'
+check_present '^## Meetings$'                  skills/standup/references/format.md     'the meeting-line contract is still recorded'
+check_present 'meetings: \[\]'                 skills/standup/scripts/collect.sh       'the collector still emits the meetings key'
+
+# The rendering contract is the standup's only format specification; without it the render
+# step improvises a different layout every morning.
+if [[ -f skills/standup/references/format.md ]]; then
+  echo "ok:   standup rendering contract present"
+else
+  echo "FAIL: standup rendering contract present"
+  fail=1
+fi
+
+# The collector must stay executable — the skill invokes it directly, not through `bash`.
+if [[ -x skills/standup/scripts/cache-heading.sh ]]; then
+  echo "ok:   standup heading cache is executable"
+else
+  echo "FAIL: standup heading cache is executable"
+  fail=1
+fi
+
+if [[ -x skills/standup/scripts/collect.sh ]]; then
+  echo "ok:   standup collector is executable"
+else
+  echo "FAIL: standup collector is executable"
+  fail=1
+fi
 
 # The reference file the granularity rule lives in must exist — the skill has no other rule.
 if [[ -f skills/plan-to-backlog/references/chunking.md ]]; then

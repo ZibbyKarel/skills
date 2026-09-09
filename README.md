@@ -1,8 +1,8 @@
 # zibby-skills
 
 A Claude Code marketplace holding one plugin, `zibby` — how I work: a TODO backlog, Jira issue
-creation, cutting a written plan into a ready backlog, and the pipeline that drives a TODO item all
-the way to a draft PR.
+creation, cutting a written plan into a ready backlog, the pipeline that drives a TODO item all
+the way to a draft PR, and the standup that reports what came out of it.
 
 | Skill | What it does |
 |---|---|
@@ -10,10 +10,12 @@ the way to a draft PR.
 | `zibby:jira` | Turn any description of work into a researched Jira issue. |
 | `zibby:plan-to-backlog` | Cut a written implementation plan into deliverable chunks: one Epic, an issue per chunk, `Blocks` links, and a short summary line per chunk in `TODO.md`. |
 | `zibby:todo-driven-development` | Drive a TODO item to a draft PR: issue → plan → implementation → PR. |
+| `zibby:standup` | Fill in the daily Slack standup thread from yesterday's PRs, reviews, Claude sessions and meetings. Pinned to Sonnet; renders on Haiku. |
 
-The four install together — they are one way of working, not a menu. `zibby:plan-to-backlog` fills
-the backlog, `zibby:todo-driven-development` empties it, and both lean on `zibby:todo` and
-`zibby:jira`.
+They install together — this is one way of working, not a menu. `zibby:plan-to-backlog` fills the
+backlog, `zibby:todo-driven-development` empties it, both lean on `zibby:todo` and `zibby:jira`,
+and `zibby:standup` reports the result each morning. The standup is the one that stands on its
+own: it reads GitHub and your session history, not the TODO backlog.
 
 ## Install
 
@@ -55,8 +57,19 @@ These are **not** installable by any plugin system, so `install.sh` reports them
 to you:
 
 - `python3` — `zibby:todo` shells out to it. Blocking.
-- `gh` — `zibby:todo-driven-development` opens pull requests with it.
+- `gh` — `zibby:todo-driven-development` opens pull requests with it, and `zibby:standup`
+  collects them. Blocking for the standup: it has no other source of PR data.
+- `jq` — `zibby:standup` builds its collection JSON with it. Blocking for the standup.
 - **Atlassian MCP server**, authenticated — `zibby:jira` needs it. Log in with `/mcp`.
+  `zibby:standup` uses it too, for ticket summaries, but degrades to PR titles without it.
+- **Slack MCP server**, authenticated — `zibby:standup` reads the standup thread and posts into
+  it. Blocking for the standup.
+- **Microsoft 365 MCP server**, authenticated — `zibby:standup` reads the Outlook calendar for the
+  meeting line. Not blocking: without it the standup simply has no `Meetingy` group.
+- A `standup:` key in `~/.zibby/zibby-skills/config.yml` — a **global** config, unlike the
+  per-repo one below. `slack.channel`, `github.org` and `github.login` are required; `repos`
+  (the per-project headings) fills itself in as new repos appear, and `sessions.excludeRepos`
+  is where personal projects go so a weekend side project stays out of a work standup.
 - A `jira:` key in `.zibby/zibby-skills/config.yml` at the root of each repo you file issues from,
   naming the target board, site, issue types, sprint policy and labels. `issueTypes` names the
   `task`, `bug` and `parent` (epic-level) type names for that instance; the older single `issueType`
@@ -84,6 +97,7 @@ skills/todo/                      SKILL.md + scripts/todo.py
 skills/jira/                      SKILL.md + references/sprint.md
 skills/plan-to-backlog/           SKILL.md + references/chunking.md
 skills/todo-driven-development/
+skills/standup/                   SKILL.md + references/format.md + scripts/{collect,cache-heading}.sh
 install.sh
 tests/                            reference and install smoke checks
 ```
@@ -94,5 +108,7 @@ tests/                            reference and install smoke checks
 claude plugin validate .      # manifests
 ./tests/check-references.sh   # cross-skill references
 ./tests/todo-script.sh        # todo.py behaviour, in a throwaway git repo
+./tests/standup-collect.sh    # collect.sh behaviour, against synthetic session transcripts
+./tests/standup-cache-heading.sh  # cache-heading.sh behaviour, against throwaway configs
 ./tests/install-smoke.sh      # install into a throwaway project, then clean up
 ```
