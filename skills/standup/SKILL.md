@@ -11,8 +11,8 @@ Writes the standup entry for a day from evidence rather than memory. The evidenc
 your own Claude Code sessions and your Outlook calendar; the rendering is a fixed format that reads
 like a person wrote it.
 
-Two things this skill is deliberately strict about: it never states a fact that isn't in the
-collected data, and it never fills in the "Dnes:" line. Everything else is mechanical.
+One thing this skill is deliberately strict about: it never states a fact that isn't in the
+collected data.
 
 **This runs on Sonnet, pinned in the frontmatter** — the work here is reading a config, computing a
 date window, running one script and calling a few APIs in a fixed order. None of that needs a
@@ -67,7 +67,7 @@ from inside a project.
 ```yaml
 standup:
   slack:
-    channel: C0BSTJ6CHJ5          # #cz3-devrel-private
+    channel: C0BSTJ6CHJ5 # #cz3-devrel-private
     threadMaxAgeHours: 18
   github:
     org: shoptet
@@ -76,10 +76,10 @@ standup:
     site: teamdotblue.atlassian.net
   sessions:
     minMessages: 10
-    excludeRepos: []              # local checkout names to keep out of the standup
-  repos:                          # github repo slug -> heading; self-populating, see step 6
+    excludeRepos: [] # local checkout names to keep out of the standup
+  repos: # github repo slug -> heading; self-populating, see step 6
     partner-cli: Shoptet addon CLI
-  authors: {}                     # github login -> accusative first name, for unresolvable logins
+  authors: {} # github login -> accusative first name, for unresolvable logins
 # schedule: 15 7 * * 1-5 (Europe/Prague) — lives in the scheduled task, not here
 ```
 
@@ -133,7 +133,7 @@ The window is **calendar days in Europe/Prague**, counted back from today:
 - **Any other weekday** — yesterday, 00:00:00 through 23:59:59.
 
 Anchoring on the standup threads instead looks tempting and is wrong: this channel posts a thread
-at 20:00 *and* another at 08:00 the next morning (observed 2026-09-08 20:00 and 2026-09-09 08:00),
+at 20:00 _and_ another at 08:00 the next morning (observed 2026-09-08 20:00 and 2026-09-09 08:00),
 so the gap between consecutive threads can be twelve evening hours and would miss the whole
 working day it is supposed to report on. The calendar rule has no such failure mode, and the
 thread's own timestamp is irrelevant to what happened yesterday.
@@ -224,7 +224,7 @@ prints `unchanged:` and exits 0). Exit 4 is `CONFIG_UNWRITABLE`; exit 5 means th
 
 This is deliberate: deriving the heading fresh each morning would rename `cms4` from "Shoptet
 monorepo" to "Monorepo Shoptetu" and back, and a group heading that drifts makes the whole message
-look generated. Cache-on-first-sight gives automatic naming *and* stability. Two consequences to
+look generated. Cache-on-first-sight gives automatic naming _and_ stability. Two consequences to
 be honest about:
 
 - The write happens unattended too, so a new repo's heading gets frozen with nobody watching.

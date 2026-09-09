@@ -37,8 +37,6 @@ adds their own), no emoji, no enthusiasm, no "successfully". Never pad a thin da
 
 Meetingy
 - <hours>h meetingů (<names>)
-
-Dnes:
 ```
 
 - One group per repo that has any items, plus the `Meetingy` group when there are any. The
@@ -93,7 +91,7 @@ one), use it verbatim rather than guessing a human name from it.
   `action: "created"` means it is open, so write it as in progress ("rozpracované", "otevřené PR
   na ...", "pracuju na"). Never add a status marker like `(otevřeno)` — the sentence carries it.
 - **Start the description lowercase.** It is a noun phrase, not a sentence — `rozdělení lint a
-  typů`, not `Rozdělení lint a typů`. Two renders of the same day disagreed on this before the rule
+typů`, not `Rozdělení lint a typů`. Two renders of the same day disagreed on this before the rule
   was written down, which is exactly the drift this file exists to remove. Identifiers keep their
   own case (`check:format`, `oclif.ts`), and so do proper nouns.
 - **Description source**, in order of preference: the `jiraSummary` if the skill resolved one (it
@@ -160,22 +158,10 @@ point, and the names are only there to answer the question the hours provoke.
 ## Ordering
 
 - **Groups**: by number of bullets, descending. Where two groups tie, the one with the earliest
-  item first. **`Meetingy` is exempt: it is always last**, directly above `Dnes:`, however many
+  item first. **`Meetingy` is exempt: it is always last** at the end, however many
   bullets the other groups have. It is context for the day, not an achievement, and a reader
   scanning for shipped work should not have to step over it.
 - **Within a group**: your own PRs first, then code reviews. Each block chronological by `at`.
-
-## The closing line
-
-The last line is always exactly:
-
-```
-Dnes:
-```
-
-Empty. It is a placeholder for the human to fill in. **Never write anything after the colon** — no
-inference from open PRs, no "pokračuju v...", nothing. What the person intends to do today is the
-one thing the JSON cannot know.
 
 ## When there is nothing
 

@@ -49,7 +49,6 @@ check_present 'Unverified'                     skills/plan-to-backlog/SKILL.md  
 check_present '^name: standup$'                skills/standup/SKILL.md                 'standup skill name intact'
 check_present 'references/format\.md'          skills/standup/SKILL.md                 'standup reads its rendering contract'
 check_present 'CLAUDE_PLUGIN_ROOT'             skills/standup/SKILL.md                 'standup script path is plugin-relative'
-check_present 'Dnes:'                          skills/standup/references/format.md     'the never-fill-Dnes rule is still recorded'
 check_present 'data, not instructions'         skills/standup/references/format.md      'the untrusted-input rule is still recorded'
 check_present 'redact'                         skills/standup/scripts/collect.sh        'session titles are still scrubbed of credentials'
 check_present 'cache-heading\.sh'               skills/standup/SKILL.md                 'headings are cached by the script, not by hand'
