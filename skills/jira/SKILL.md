@@ -11,20 +11,20 @@ of the input. Works standalone (any input) or as a step another skill hands a TO
 
 ## 1. Establish the autonomy level, once, at the start
 
-There are three levels. Pick the one that applies before doing anything else:
+There are two levels. Pick the one that applies before doing anything else:
 
 - **confirm** — draft the issue, show it, create only after the user says yes.
-- **auto** — create straight away without showing the draft first.
-- **unattended** — like `auto`, plus: this run has no human watching it, so **every question this
-  skill would otherwise ask is forbidden**. Wherever a later step says "ask the user", return the
-  named failure status instead and stop. Only a calling skill sets this level.
+- **auto** — create straight away without showing the draft first. This run has no human watching
+  it, so **every question this skill would otherwise ask is forbidden**. Wherever a later step says
+  "ask the user", return the named failure status instead and stop. Only a calling skill sets this
+  level.
 
 If a calling skill passed a level explicitly (`zibby:todo-driven-development` always does, in every
 one of its modes), use it and don't ask. Otherwise ask the user whether they want `confirm` or `auto`: creating a Jira
 issue is visible to the whole team and not something to spam, but re-confirming every time inside
 an already-reviewed flow is friction, not safety. Don't assume either way; ask.
 
-**Failure statuses (unattended only).** Each is a plain, final line back to the caller — never a
+**Failure statuses (auto only).** Each is a plain, final line back to the caller — never a
 question, never a guess:
 
 - `NO_CONFIG: <what is missing>` — the board configuration can't be resolved (step 2).
@@ -94,7 +94,7 @@ they can add `issueTypes` to the config file to skip this question next time. A 
 `issueTypes.bug` is not a question: fall back to the task type and say so in the report — a bug
 filed as a task is a two-click fix, an invented type name is a failed call.
 
-**Unattended:** neither question may be asked. A missing `board` or `site` ends the run with
+**Auto:** neither question may be asked. A missing `board` or `site` ends the run with
 `NO_CONFIG: <what is missing>`. So does a project with no resolvable task type (`issueTypes.task`
 nor `issueType`) — guessing an issue type name on a localized instance is how a whole night's run
 fails identically eleven times.
@@ -154,13 +154,13 @@ one, and never create one here — that is `zibby:plan-to-backlog`'s job.
 Fetch the named issue with `getJiraIssue` and check its type's `hierarchyLevel` sits **above** the
 level of the type chosen in step 4b. `getJiraIssueTypeMetaWithFields` returns no `allowedValues`
 for the `parent` field on this kind of instance, so the check is yours to make — Jira enforces it
-server-side and rejects the create, which unattended reads as an unexplained failure.
+server-side and rejects the create, which auto reads as an unexplained failure.
 
 - Level above (e.g. `Epic` over `Task`) — pass it.
 - Same level or below (e.g. a `Task` named as the parent of a `Task`) — stop. Interactive: tell the
   user the two real options (create an epic above it, or file these as subtasks of it) and let them
   choose; never switch to a subtask type yourself, since subtasks behave differently in boards,
-  sprints and reports and a silently chosen hierarchy gets rearranged by hand later. Unattended:
+  sprints and reports and a silently chosen hierarchy gets rearranged by hand later. Auto:
   return `PARENT_MISMATCH: <key> is <type> (level <n>), not above <child type>` and create nothing.
 - Not fetchable at all — `JIRA_UNAVAILABLE: <the error>`.
 
@@ -173,7 +173,7 @@ stop and ask the user how to proceed — create anyway, reuse the existing issue
 — rather than silently filing a duplicate. This matters most when this skill is invoked repeatedly
 over the same source item (e.g. a retried `zibby:todo-driven-development` run after a failure).
 
-**Unattended:** a strong match ends the run with `DUPLICATE: <key> <url>` and creates nothing. Do
+**Auto:** a strong match ends the run with `DUPLICATE: <key> <url>` and creates nothing. Do
 not resolve the ambiguity yourself in either direction — filing a duplicate spams a board the whole
 team reads, and silently reusing an issue whose scope only looks similar attaches a night's work to
 the wrong ticket. Both are worse than handing the decision back in the morning report.
@@ -182,7 +182,7 @@ the wrong ticket. Both are worse than handing the decision back in the morning r
 
 Show the drafted title, description, issue type (and, if you overrode a proposed one, why),
 parent, labels, team, sprint, and assignee. Apply any edits the
-user asks for. Skip this step entirely at `auto` and `unattended`.
+user asks for. Skip this step entirely at `auto`.
 
 ## 7. Create the issue
 
@@ -192,7 +192,7 @@ field id is instance-specific — never assume a fixed `customfield_NNNNN` numbe
 `team`'s configured value against that field's allowed values by name to get the id to send. If the
 field isn't on this issue type, or `team`'s value isn't among its allowed values, don't guess or
 create the field's value from the string: tell the user (interactive) or note it and proceed without
-`team` (unattended) — a team-less issue is a one-click morning fix, and guessing an id risks
+`team` (auto) — a team-less issue is a one-click morning fix, and guessing an id risks
 assigning the issue to the wrong team silently.
 
 If this issue is to land in the current sprint — a `sprint: current` argument, or `sprint: current`

@@ -18,19 +18,14 @@ type), `zibby:todo` writes every TODO.md line. Don't reimplement either. If `zib
 ## 1. Establish the autonomy level, once, at the start
 
 - **confirm** — you see the proposed decomposition, and each issue's draft before it's created.
-- **auto** — you still see the decomposition; individual issue drafts are not shown.
-- **unattended** — nothing is shown and **no question may be asked**. Only a calling skill sets
+- **auto** — nothing is shown and **no question may be asked**. Only a calling skill sets
   this level; wherever a step below says "ask", return the named failure status and stop.
 
 If a caller passed a level, use it. Otherwise ask which of `confirm` or `auto` — never assume.
 
-The decomposition checkpoint in step 6 is **not** part of what `auto` suppresses. It is the one
-judgment no other skill in this chain can make, it is one decision for the whole batch rather than
-a question per item, and filing ten badly cut issues is visible to everyone who reads the board.
-
 **`--skip-jira`** is orthogonal to the level: it files no issues at all (step 8).
 
-## 2. Failure statuses (unattended only)
+## 2. Failure statuses (auto only)
 
 - `NO_CONFIG: <what is missing>` — the Jira configuration can't be resolved.
 - `NO_PLAN: <why>` — no plan could be read from the input (step 3).
@@ -67,7 +62,7 @@ epic nobody can act on in three months.
   isn't a file yet, then **stop and ask the user to commit it**, and continue once they have. Don't
   commit on their behalf: a commit nobody asked for is a surprise in a repo, and a plan still being
   edited isn't ready to be cut up anyway.
-- Unattended: any non-durable source is `PLAN_NOT_PERSISTENT: <path>` — a night run can't wait for
+- Auto: any non-durable source is `PLAN_NOT_PERSISTENT: <path>` — a night run can't wait for
   a commit.
 
 Also read the plan **completely** before proposing anything, including whatever it says about
@@ -84,17 +79,17 @@ Fetch it with `getJiraIssue` and check its type's `hierarchyLevel` is above the 
 mismatch (e.g. a `Task` named as the parent of `Task`s), stop and offer the two real options —
 create an Epic above it, or file these as subtasks of it — and let the user choose. Never switch to
 a subtask type yourself: subtasks behave differently in boards, sprints and reports, and a silently
-chosen hierarchy gets rearranged by hand later. Unattended: `PARENT_MISMATCH`.
+chosen hierarchy gets rearranged by hand later. Auto: `PARENT_MISMATCH`.
 
 **No parent was given:** propose one. Its title is the phase the plan describes; its description
 is a short framing plus **the reference to the plan source from step 3** — never a copy of the
 plan, which would be a second version of the same text, drifting from the first the moment either
 is edited. Create it through `zibby:jira` with the `issueTypes.parent` type from the config (no
 `parent` of its own), and it inherits the config's `labels` and `team` like any other issue. At
-`confirm` this proposal is part of the step 6 checkpoint; at `auto` it's created once the
-decomposition is confirmed.
+`confirm` this proposal is part of the step 6 checkpoint; at `auto` it's created automatically,
+alongside the decomposition, without stopping to show it.
 
-If the config has no `issueTypes.parent`, ask which type to use (unattended: `NO_CONFIG`). Guessing
+If the config has no `issueTypes.parent`, ask which type to use (auto: `NO_CONFIG`). Guessing
 "Epic" on a localized instance is a coin flip.
 
 ## 5. Research the code once, for the whole plan
@@ -129,11 +124,14 @@ Then present, in one message:
   finding before twelve branches are cut off each other,
 - anything you had to decide that the plan didn't say.
 
-Wait for the user. Apply their edits and show the revised list if they change the shape of it.
+**At `confirm`:** wait for the user. Apply their edits and show the revised list if they change the
+shape of it.
+
+**At `auto`:** nothing is shown; proceed straight to step 7 with this decomposition.
 
 If the plan can't be cut without a decision only the user can make — it describes two unrelated
-phases, or its scope is too vague to name a deliverable — say that instead of guessing. Unattended:
-`AMBIGUOUS_DECOMPOSITION: <why>`.
+phases, or its scope is too vague to name a deliverable — say that instead of guessing (`confirm`),
+or, at `auto`, return `AMBIGUOUS_DECOMPOSITION: <why>` and stop.
 
 ## 7. Before filing: compare against what already exists
 
@@ -149,7 +147,7 @@ Compare them against the confirmed chunks and report three groups:
 
 Ask about the "not sure" group before filing any of them. Exact title matching would file a
 duplicate after the smallest rewording; silent fuzzy matching swallows a chunk that merely
-resembles one already there. Unattended: a non-empty "not sure" group is
+resembles one already there. Auto: a non-empty "not sure" group is
 `AMBIGUOUS_DECOMPOSITION: <chunk> may already exist as <key>` — file the unambiguous ones first,
 then stop and report.
 
@@ -165,9 +163,9 @@ consumes/produces contract — the implementer reads the issue, not this convers
 from step 5, the proposed type, the parent key, and `sprint: none` — a backlog is filed to be worked
 through later, and a whole epic landing in the active sprint at once is nobody's intent;
 `zibby:todo-driven-development` assigns the sprint per item, when it starts implementing that
-item. Pass this run's autonomy level through (`confirm` for `confirm`,
-`auto` for `auto`, `unattended` for `unattended`) so it doesn't ask per chunk what this run already
-answered once. Its duplicate check is never pre-answered — let it ask, per its own rules.
+item. Pass this run's autonomy level through (`confirm` for `confirm`, `auto` for `auto`) so it
+doesn't ask per chunk what this run already answered once. Its duplicate check is never
+pre-answered — let it ask, per its own rules.
 
 **The TODO.md line.** Straight after the issue exists:
 

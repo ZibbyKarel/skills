@@ -14,8 +14,8 @@ sprint, or a run stopped because a custom field wasn't where it was expected, bo
 
 - Never guess a `customfield_NNNNN` number, a sprint id, or which of several sprints is meant.
 - Never fail an item, stop a run, or withhold a created issue over a sprint that didn't get set.
-- Never add a sprint-specific failure status to a caller's unattended list — those stop items, and
-  this doesn't warrant it. Report it in the run's normal channel (a ledger row unattended, a
+- Never add a sprint-specific failure status to a caller's auto list — those stop items, and
+  this doesn't warrant it. Report it in the run's normal channel (a ledger row in auto, a
   mention to the user otherwise) and move on.
 
 ## 1. Resolve the Sprint field's id

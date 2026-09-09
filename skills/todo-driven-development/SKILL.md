@@ -1,7 +1,7 @@
 ---
 name: todo-driven-development
-description: "Drive a project's TODO.md items all the way from backlog to a draft PR — file a researched Jira issue, write and confirm an implementation plan, execute it with subagent-driven development, and open the resulting draft PR linked back to the issue. Use this when the user wants to work through their TODO.md, either one specific item ('process item 3', 'work on the flaky-test todo'), a range of items ('process items 1-4', 'do the first 4'), or the whole backlog ('go through my todo list', 'process everything in TODO.md'), including as an unattended overnight run that reports a table of issues and PRs in the morning. This is a thin conductor over three other skills — zibby:todo, zibby:jira, and the superpowers plugin — not a reimplementation of any of them."
-argument-hint: "<item-number> | <start>-<end> | all | (<start>-<end> | all) --unattended"
+description: "Drive a project's TODO.md items all the way from backlog to a draft PR — file a researched Jira issue, write and confirm an implementation plan, execute it with subagent-driven development, and open the resulting draft PR linked back to the issue. Use this when the user wants to work through their TODO.md, either one specific item ('process item 3', 'work on the flaky-test todo'), a range of items ('process items 1-4', 'do the first 4'), or the whole backlog ('go through my todo list', 'process everything in TODO.md'), including as a --auto overnight run that reports a table of issues and PRs in the morning. This is a thin conductor over three other skills — zibby:todo, zibby:jira, and the superpowers plugin — not a reimplementation of any of them."
+argument-hint: "<item-number> | <start>-<end> | all | (<start>-<end> | all) --auto"
 ---
 
 # todo-driven-development
@@ -22,42 +22,40 @@ stop rather than reimplementing any part of it.
   bound from memory of an earlier `list` call in this conversation.
 - **Whole backlog:** the user asks to work through the whole file — loop calling `todo next` and
   process each pending item in turn until it reports `no pending items`.
-- **Unattended:** any of the above with nobody watching — an overnight run. Same pipeline, but
+- **`--auto`:** any of the above with nobody watching — an overnight run. Same pipeline, but
   every human checkpoint is replaced by a recorded decision, and the run ends with a report table
   instead of a conversation. Only enter this mode when the user asks for it explicitly (`all
-  --unattended`, `1-4 --unattended`, "run it overnight", "let it run while I sleep"). Never infer it
+  --auto`, `1-4 --auto`, "run it overnight", "let it run while I sleep"). Never infer it
   from impatience.
 
 All four run the same per-item pipeline below. The only differences are what feeds the loop and,
-in unattended mode, the substitutions named in each step.
+with `--auto`, the substitutions named in each step.
 
-## Autonomy level — one-item, range, and whole-backlog modes
+## Autonomy level — one-item, range, and whole-backlog modes (not `--auto`)
 
-Before touching the first item, ask the user once: **auto**, **review**, or **skip Jira**. Never
+Before touching the first item, ask the user once: **review** or **skip Jira**. Never
 ask again, and never let a later step re-ask on the run's behalf — the answer governs every item in
 this run.
 
-- **auto** — no draft is shown for the Jira issue or the plan; the plan is instead checked by an
-  independent subagent reviewer, the same way unattended mode checks it (step 4). Implementation
-  and PR creation are already automatic in every mode and don't change.
 - **review** — the user sees the drafted Jira issue (step 2) and the drafted plan (step 4) before
   either moves on. Implementation and PR creation are still automatic once the plan is confirmed.
 - **skip Jira** — this run files no Jira issues at all: step 2 is skipped for every item, and every
   later step that would touch an issue (spec naming in step 3, the transitions in steps 5 and 6, the
   `<ISSUE-KEY>` reference in the PR title and body) is skipped too. Use this for a project that isn't
-  tracked in Jira, or a run where filing issues isn't wanted. The plan is checked the same
-  independent-reviewer way as `auto`.
+  tracked in Jira, or a run where filing issues isn't wanted. The plan is checked by an independent
+  subagent reviewer instead of the user (step 4), the same way `--auto` checks it.
 
-Unattended mode never asks this question — it already runs `auto`'s per-item behavior, plus the
-full question-suppression described below. It always files Jira issues; `skip Jira` is only offered
-in one-item, range, and whole-backlog modes.
+`--auto` never asks this question — it already runs fully autonomously, the same
+independent-reviewer plan check as `skip Jira`, plus the full question-suppression described below.
+It always files Jira issues; `skip Jira` is only offered in one-item, range, and whole-backlog
+(non-`--auto`) runs.
 
 ## Every item runs in its own worktree
 
 This pipeline never implements an item in the main checkout — a run sitting there for the minutes
 or hours an implementation takes would block the user out of their own repo the whole time. Every
 item gets its own git worktree at `./worktrees/<branch-name>` (the branch name computed in step 5),
-in every mode, not only unattended ones.
+in every mode, not only `--auto` ones.
 
 State this as a declared directory preference — `./worktrees` at the repo root, not the
 `.worktrees/` default — when invoking `superpowers:using-git-worktrees`, whether directly or
@@ -67,10 +65,10 @@ never comes up, in any mode, since the answer is always yes.
 
 Before the first worktree of a run, verify `./worktrees` is git-ignored
 (`git check-ignore -q ./worktrees`); if not, append `worktrees/` to `.git/info/exclude` — local-only,
-mirroring how the unattended pre-flight handles `.superpowers/`. Never edit the tracked `.gitignore`
+mirroring how the `--auto` pre-flight handles `.superpowers/`. Never edit the tracked `.gitignore`
 for this.
 
-## What unattended mode does and does not relax
+## What `--auto` does and does not relax
 
 It replaces **questions** with **recorded decisions**. It does not relax any judgment about what is
 safe to do.
@@ -87,10 +85,10 @@ going — an item recorded as blocked costs one morning of rework; a night that 
 `develop` costs considerably more.
 
 `subagent-driven-development` already runs continuously and rules on its own conflicts rather than
-stalling, so its execution stage needs no changes for unattended use — only the pre-authorization
+stalling, so its execution stage needs no changes for `--auto` use — only the pre-authorization
 above, which you state in the dispatch.
 
-## 0. Pre-flight — unattended mode only
+## 0. Pre-flight — `--auto` only
 
 The point of pre-flight is that a run which cannot possibly succeed fails at 22:05 with a clear
 reason, not at 02:00 with a stalled question nobody will read until morning. Run every check, then
@@ -111,7 +109,7 @@ item 1.
    fails, append `.superpowers/` to `.git/info/exclude` — local-only, so it never lands in a PR
    diff. Do not edit the tracked `.gitignore` for this.
 5. **Snapshot the backlog.** Run `todo list` and write every pending item — its number and text —
-   into the ledger before touching anything. Running a range unattended (`1-4 --unattended`)
+   into the ledger before touching anything. Running a range with `--auto` (`1-4 --auto`)
    snapshots and reports on only the items inside that span, already-done ones included (so the
    ledger can record them as `skipped: already done` per step 1), not the rest of the file. The
    final report names items the user recognises even if TODO.md changed underneath the run.
@@ -125,14 +123,14 @@ items already have issues and PRs.
 
 ### 1. Get the item's text
 
-`todo show <n>` (one-item mode) or `todo next` (whole-backlog mode, and unattended mode when it's
+`todo show <n>` (one-item mode) or `todo next` (whole-backlog mode, and `--auto` when it's
 running the whole backlog, both of which also give you `<n>`). This is the raw input for the next
 step — don't rephrase or summarize it yourself first.
 
 **Range mode:** run `todo list` once at the start of the run, not per item, to see which numbers in
 the span are already checked off. Walk the span in ascending order; for each `<n>`, if `list`
-showed it already done, skip it without running any later step — report it (a ledger row in
-unattended mode, a line to the user otherwise) as `skipped: already done` and move to the next
+showed it already done, skip it without running any later step — report it (a ledger row with
+`--auto`, a line to the user otherwise) as `skipped: already done` and move to the next
 number in the span. For a still-pending `<n>`, use `todo show <n>` for its text, same as one-item
 mode. When the span is exhausted, the run ends — there is no `todo next` call and no "no pending
 items" condition in this mode.
@@ -147,7 +145,7 @@ front and leaves each TODO.md line pointing at its own, so a line can arrive her
   filing entirely, and skip the duplicate check with it: there is nothing heuristic to decide when
   the key is written in the line verbatim.
 - If its status is in the **Done** category, do not implement anything. Report the item as
-  `skipped: <key> is already done` (a ledger row in unattended mode) and move on — a checked-off
+  `skipped: <key> is already done` (a ledger row with `--auto`) and move on — a checked-off
   issue with an unchecked TODO line means the two got out of sync, and the fix is a human looking
   at which one is right, not a second implementation of finished work.
 - If the fetch fails, treat it as `JIRA_UNAVAILABLE` for this item rather than filing a new issue
@@ -167,18 +165,18 @@ explicitly whatever this repo's config says. The sprint is set in step 5, when i
 actually starts — which is also the only place it can be set for an item that arrived here with an
 issue `zibby:plan-to-backlog` filed earlier, since that branch creates nothing.
 
-**One-item, range, and whole-backlog modes:** pass the autonomy level chosen at the top of the run,
-explicitly — `confirm` for `review`, `auto` for `auto` — so `zibby:jira` doesn't ask its own
-question per item; the run already answered it once. It still runs its own duplicate check
-regardless of level, and that check is never pre-answered: if it finds a strong match, let it ask
-the user how to proceed (create anyway, reuse, or refine) exactly as it's written — each duplicate
-is an independent decision even within an `auto` run.
+**One-item, range, and whole-backlog modes (not `--auto`):** pass the autonomy level chosen at the
+top of the run, explicitly — `confirm` for `review` — so `zibby:jira` doesn't ask its own question
+per item; the run already answered it once. It still runs its own duplicate check regardless of
+level, and that check is never pre-answered: if it finds a strong match, let it ask the user how to
+proceed (create anyway, reuse, or refine) exactly as it's written — each duplicate is an independent
+decision even within this run.
 
-**Unattended mode:** first check the ledger for this item's row — if it already carries an issue key
+**`--auto`:** first check the ledger for this item's row — if it already carries an issue key
 from an earlier, interrupted pass of this run, reuse that issue and resume at step 3. Re-filing it
 would find the issue this very run created and skip the item as a duplicate of itself.
 
-Otherwise pass `zibby:jira` the autonomy level `unattended` explicitly, which is the one case where
+Otherwise pass `zibby:jira` the autonomy level `auto` explicitly, which is the one case where
 pre-answering that question is correct — the user authorized it when they asked for an overnight
 run. That level also turns its own would-be questions into failure statuses. Handle each by ending
 the item and moving on, never by deciding for it:
@@ -217,7 +215,7 @@ level.
 and anything you'd flag) and ask if it needs changes. This is not optional and not something to fold
 into a "run everything hands-off" preference. Apply any requested changes before moving on.
 
-**auto and unattended — an independent reviewer checks it instead of the user.** Dispatch a fresh
+**skip Jira, or `--auto` — an independent reviewer checks it instead of the user.** Dispatch a fresh
 subagent on the most capable available model — fresh because a reviewer that watched you write the
 plan will agree with it. Hand it two file paths, the spec and the plan, and nothing else; do not
 summarize either into the prompt, and do not tell it what you think of the plan. Ask it for four
@@ -238,13 +236,13 @@ It returns `SOUND`, `SOUND_WITH_NOTES` (plus the notes), or `DEFECTIVE` (plus th
 - `SOUND_WITH_NOTES` → record the notes (in the ledger, if this run keeps one) and carry them
   verbatim into step 5's dispatch, so the executing skill's own review loop sees them.
 - `DEFECTIVE`, or any finding under verdict 4:
-  - **auto** — `auto` suppresses confirmations, not escalations. Stop and show the user the plan
-    and the reviewer's reasons, and ask how to proceed, before touching this item further.
-  - **unattended** — no one is there to ask. Skip the item. Record
+  - **review or skip Jira (interactive)** — stop and show the user the plan and the reviewer's
+    reasons, and ask how to proceed, before touching this item further.
+  - **`--auto`** — no one is there to ask. Skip the item. Record
     `skipped: plan defect — <reason>` and move to the next one. The Jira issue stays open and the
     TODO item stays unchecked, which is the correct morning state: a human reads the reason and
     decides. Do not attempt a repair round — a plan a reviewer called defective is a plan whose spec
-    or research is wrong upstream, and re-planning it unattended just produces a second wrong plan
+    or research is wrong upstream, and re-planning it with nobody watching just produces a second wrong plan
     more confidently.
 
 Once the plan is confirmed (any path above), answer the execution-approach question with
@@ -261,7 +259,7 @@ issue key from step 2, and pick the transition whose name best matches "in progr
 case-insensitively and allow for a localized name (this instance's issue types already are, e.g.
 "Úkol"); if no name matches but exactly one transition targets a status in the `indeterminate`
 category, use that one instead. Call `transitionJiraIssue` with the chosen transition. Treat this as
-best-effort: no confident match, or a failed call, gets noted (a ledger row in unattended mode, a
+best-effort: no confident match, or a failed call, gets noted (a ledger row with `--auto`, a
 mention to the user otherwise) and the item proceeds regardless — a wrong or missing Jira status is
 a one-click fix later, never a reason to stop or fail the item.
 
@@ -270,8 +268,8 @@ Then put the issue into the board's **current sprint**, following `zibby:jira`'s
 that file), then apply it with `editJiraIssue` on the issue key (step 3's second path — the issue
 already exists here, whether this run filed it in step 2 or `zibby:plan-to-backlog` filed it weeks
 ago). This is the same best-effort deal as the transition above and carries the same rules: an
-unresolvable field, a board with no active sprint, or a rejected call gets noted (a ledger row in
-unattended mode, a mention to the user otherwise) and the item proceeds regardless. It happens here
+unresolvable field, a board with no active sprint, or a rejected call gets noted (a ledger row with
+`--auto`, a mention to the user otherwise) and the item proceeds regardless. It happens here
 rather than at filing time because an issue in the current sprint is a claim that the work is
 being done now, and that only becomes true at this step.
 
@@ -293,7 +291,7 @@ worktree path computed above for its setup step to use. Let it run to completion
 in how it implements or reviews. It ends by directing you to
 `superpowers:finishing-a-development-branch`.
 
-**Unattended mode:** state the standing authorizations from the top of this file in the dispatch, so
+**`--auto`:** state the standing authorizations from the top of this file in the dispatch, so
 its own stop conditions resolve without a human. Carry any `SOUND_WITH_NOTES` findings from step 4
 in the same dispatch. When it finishes, copy its "Rulings I made" list into the ledger — those are
 decisions taken on the user's behalf while they slept, and the morning report is the only place they
@@ -355,7 +353,7 @@ remove its worktree before moving to the next item (`git worktree remove --force
 mode: `./worktrees/` is shared across the whole run, and a leftover entry from a dead or finished
 item just clutters it for whichever item comes next.
 
-**Unattended mode:** append the item's finished row to the ledger, return to the main checkout, and
+**`--auto`:** append the item's finished row to the ledger, return to the main checkout, and
 go back to step 1 — `todo next` when running the whole backlog, or the next number in the span when
 running a range. Two rules govern the loop:
 
@@ -369,7 +367,7 @@ In interactive whole-backlog mode, go back to step 1 (`todo next`) until there's
 interactive range mode, go back to step 1 for the next number in the span until the span is
 exhausted.
 
-## 8. The morning report — unattended mode only
+## 8. The morning report — `--auto` only
 
 When the loop ends — backlog exhausted, systemic stop, or a hard stop from step 2 — write the report
 to `<run-dir>/summary.md` **and** print it as the session's final message. Writing it to a file
@@ -401,7 +399,7 @@ deleted worktree was a decision made in secret.
 is — reconcile a duplicate, fix the upstream spec, look at a red suite. Items in this section still
 have open Jira issues and unchecked TODO lines by design.
 
-## Launching an unattended run
+## Launching a `--auto` run
 
 Skill questions are only one of the two ways a night run freezes; **permission prompts** are the
 other, and no wording in this skill prevents them. Before starting, the session needs either bypass
