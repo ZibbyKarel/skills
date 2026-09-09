@@ -44,7 +44,7 @@ this run.
   either moves on. Implementation and PR creation are still automatic once the plan is confirmed.
 - **skip Jira** — this run files no Jira issues at all: step 2 is skipped for every item, and every
   later step that would touch an issue (spec naming in step 3, the transitions in steps 5 and 6, the
-  `Resolves <ISSUE-KEY>` line in the PR body) is skipped too. Use this for a project that isn't
+  `<ISSUE-KEY>` reference in the PR title and body) is skipped too. Use this for a project that isn't
   tracked in Jira, or a run where filing issues isn't wanted. The plan is checked the same
   independent-reviewer way as `auto`.
 
@@ -314,9 +314,14 @@ other part of that skill (running tests, detecting the environment, determining 
 cleanup) proceeds exactly as it's written; this pipeline only pre-answers the integration
 question, and only with this one option.
 
-Compose the PR body so it links the Jira issue from step 2 — e.g. a line like
-`Resolves <ISSUE-KEY>: <issue URL>` — since `finishing-a-development-branch`'s own template has no
-notion of Jira. Report the created PR's URL once it exists.
+GitHub's Jira integration links a PR to its issue from the bare issue key appearing in the branch
+name, a commit message, or the PR title — not from any particular keyword ("Resolves", "Fixes", …)
+in the PR body, which isn't one of its documented detection points. The branch name from step 4
+already carries `<ISSUE-KEY>` at the start, so linking already works; also prefix the PR title with
+`<ISSUE-KEY>` for a second, title-level match. Compose the PR body so it states the issue plainly
+for human readers — e.g. a line like `<ISSUE-KEY>: <issue URL>` — since `finishing-a-development-branch`'s
+own template has no notion of Jira, but don't rely on the body's wording for the integration itself.
+Report the created PR's URL once it exists.
 
 **`skip Jira`:** there is no issue to link — omit the `Resolves` line and the transition below
 entirely.
