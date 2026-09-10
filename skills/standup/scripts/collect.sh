@@ -81,10 +81,14 @@ gh_fatal() {
 }
 
 jira_key_from() { # jira_key_from <branch> <title>
+  # Not anchored to the start: Jira's own GitHub integration recognizes an issue key
+  # anywhere in the branch name or title (e.g. "karel/CZ3TDR1-630-fix-thing"), so a
+  # PR with an issue genuinely attached in Jira must still resolve here — otherwise
+  # the render falls back to the PR number, which is the bug this fixes.
   local branch="${1:-}" title="${2:-}" key=""
-  key="$(printf '%s' "$branch" | grep -oE '^[A-Z][A-Z0-9]+-[0-9]+' | head -1)"
+  key="$(printf '%s' "$branch" | grep -oE '[A-Z][A-Z0-9]+-[0-9]+' | head -1)"
   if [[ -z "$key" ]]; then
-    key="$(printf '%s' "$title" | grep -oE '^[A-Z][A-Z0-9]+-[0-9]+' | head -1)"
+    key="$(printf '%s' "$title" | grep -oE '[A-Z][A-Z0-9]+-[0-9]+' | head -1)"
   fi
   printf '%s' "$key"
 }

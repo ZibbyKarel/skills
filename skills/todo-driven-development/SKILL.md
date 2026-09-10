@@ -1,7 +1,7 @@
 ---
 name: todo-driven-development
 description: "Drive a project's TODO.md items all the way from backlog to a draft PR — file a researched Jira issue, write and confirm an implementation plan, execute it with subagent-driven development, and open the resulting draft PR linked back to the issue. Use this when the user wants to work through their TODO.md, either one specific item ('process item 3', 'work on the flaky-test todo'), a range of items ('process items 1-4', 'do the first 4'), or the whole backlog ('go through my todo list', 'process everything in TODO.md'), including as a --auto overnight run that reports a table of issues and PRs in the morning. This is a thin conductor over three other skills — zibby:todo, zibby:jira, and the superpowers plugin — not a reimplementation of any of them."
-argument-hint: "<item-number> | <start>-<end> | all | (<start>-<end> | all) --auto"
+argument-hint: "<item-number> | <start>-<end> | all | (<start>-<end> | all) --auto [--skip-jira] [--target <branch>] [--no-pr]"
 ---
 
 # todo-driven-development
@@ -27,6 +27,25 @@ stop rather than reimplementing any part of it.
   instead of a conversation. Only enter this mode when the user asks for it explicitly (`all
   --auto`, `1-4 --auto`, "run it overnight", "let it run while I sleep"). Never infer it
   from impatience.
+- **`--skip-jira`:** a flag, combinable with any of the above including `--auto` (`all --auto
+  --skip-jira`, `1-4 --auto --skip-jira`), that pre-answers the Jira question from the "Autonomy
+  level" section below as **skip Jira** instead of asking or, for `--auto`, instead of `--auto`'s
+  usual "always files Jira issues" default. See that section and "What `--auto` does and does not
+  relax" for exactly what this does and doesn't change.
+- **`--target <branch>`:** a flag, combinable with any of the above, that names the branch every
+  item's work integrates against instead of whatever `finishing-a-development-branch`'s own step 3
+  would detect or ask about. It works standalone: without `--no-pr` it only changes which branch
+  the PR opens against. Combined with `--no-pr` it also names the branch each item merges into
+  directly. See step 6 ("Finish the branch") for exactly how it's used in each case.
+- **`--no-pr`:** a flag, combinable with any of the above including `--auto` (`all --auto
+  --target develop --no-pr`), that pre-answers `finishing-a-development-branch`'s step 4 menu with
+  **"1. Merge back to `<base-branch>` locally"** instead of **"2. Push and create a Pull Request"**
+  — every item merges straight into the target branch instead of landing in a draft PR. `<base-branch>`
+  is `--target`'s branch when given, otherwise whatever step 3 would normally detect. The merge
+  stays local — this pipeline never pushes the target branch itself; pushing it onward is left to
+  the user. See step 6 for exactly how this changes that step, step 7 for how the loop closes
+  without a PR URL, and "What `--auto` does and does not relax" for the standing authorization this
+  requires in `--auto` runs.
 
 All four run the same per-item pipeline below. The only differences are what feeds the loop and,
 with `--auto`, the substitutions named in each step.
@@ -42,13 +61,22 @@ this run.
 - **skip Jira** — this run files no Jira issues at all: step 2 is skipped for every item, and every
   later step that would touch an issue (spec naming in step 3, the transitions in steps 5 and 6, the
   `<ISSUE-KEY>` reference in the PR title and body) is skipped too. Use this for a project that isn't
-  tracked in Jira, or a run where filing issues isn't wanted. The plan is checked by an independent
-  subagent reviewer instead of the user (step 4), the same way `--auto` checks it.
+  tracked in Jira, or a run where filing issues isn't wanted. The plan moves straight to execution
+  once `writing-plans` has saved it, the same as `--auto`.
 
-`--auto` never asks this question — it already runs fully autonomously, the same
-independent-reviewer plan check as `skip Jira`, plus the full question-suppression described below.
-It always files Jira issues; `skip Jira` is only offered in one-item, range, and whole-backlog
-(non-`--auto`) runs.
+`--auto` never asks this question — it already moves straight from a saved plan to execution, the
+same as `skip Jira`, plus the full question-suppression described below. By default it always files
+Jira issues; pass the `--skip-jira` flag alongside it (`all --auto --skip-jira`, `1-4 --auto
+--skip-jira`) to make an overnight run behave as `skip Jira` for every Jira-related step too — no
+issues filed, no transitions attempted, no `<ISSUE-KEY>` in branch or PR title — while every other
+`--auto` behavior (continuous execution, standing authorizations, ledger, morning report) is
+unchanged. Without the flag, `skip Jira` is only offered as an interactive choice in one-item,
+range, and whole-backlog (non-`--auto`) runs; `--skip-jira` also works as a flag in those modes, to
+pre-answer the same question without asking.
+
+Every later step in this pipeline that says "**skip Jira:**" means: this run has no Jira issue for
+the item, whether that's because the interactive choice was `skip Jira` or because `--skip-jira` was
+passed (with or without `--auto`). Read every such bullet below as covering both.
 
 ## Every item runs in its own worktree
 
@@ -75,11 +103,16 @@ safe to do.
 
 Standing authorizations for the whole run:
 
-- push a new feature branch to `origin` and open a **draft** PR from it (step 6's pre-answer).
+- push a new feature branch to `origin` and open a **draft** PR from it (step 6's pre-answer) — or,
+  when `--no-pr` is passed, merge the feature branch **locally** into the target branch (`--target`'s
+  branch, or the detected base branch if `--target` is absent) instead. This is the one explicit
+  carve-out from the "merge into a shared branch" stop condition below: it covers only this local
+  merge of this run's own feature branches into the named target, never a push of that branch
+  onward and never any other shared-branch operation.
 
 Everything else that would normally stop a human-supervised run still stops the **item**: a
-destructive or irreversible operation, a security-sensitive action, a merge into a shared branch, a
-publish, a force-push. When one of those is reached, abandon the item, record it as
+destructive or irreversible operation, a security-sensitive action, a merge into a shared branch
+other than the `--no-pr` case above, a publish, a force-push. When one of those is reached, abandon the item, record it as
 `blocked: <what was reached>`, and move to the next one. Never widen this list at 3am to keep a run
 going — an item recorded as blocked costs one morning of rework; a night that force-pushed
 `develop` costs considerably more.
@@ -98,10 +131,11 @@ item 1.
 1. **`superpowers` is actually invocable.** Confirm `superpowers:writing-plans` and
    `superpowers:subagent-driven-development` appear in this session's available skills. A plugin
    listed as enabled by `claude plugin list` is not the same as a skill the `Skill` tool will
-   accept — verify the skill, not the plugin. Without it the pipeline dies at step 4 every time.
-2. **Jira is reachable and authenticated.** Call `atlassianUserInfo` once. The Atlassian MCP server
-   is interactively authenticated, so a token that expired since the last session turns every item
-   into an identical failure.
+   accept — verify the skill, not the plugin. Without it every item dies at step 4 or step 5.
+2. **Jira is reachable and authenticated.** Skip this check entirely when `--skip-jira` is also
+   given — this run touches no Jira issue, so there is nothing to verify. Otherwise call
+   `atlassianUserInfo` once. The Atlassian MCP server is interactively authenticated, so a token
+   that expired since the last session turns every item into an identical failure.
 3. **The base repo is clean.** `git status` in the main checkout must show no uncommitted or
    untracked work. Never stash or discard on the user's behalf here — report and stop.
 4. **The run directory is git-ignored.** The ledger lives at `.superpowers/tdd-runs/<run-id>/` in
@@ -156,9 +190,10 @@ front and leaves each TODO.md line pointing at its own, so a line can arrive her
 
 Then continue at step 3 with the fetched issue's key, URL and description.
 
-**If this run's autonomy level is `skip Jira`, skip this step and step 3 entirely** — there is no
-issue key, URL, or drafted description. Go straight to step 4, writing the spec file described there
-from the item's text directly instead of a Jira description.
+**If this run's autonomy level is `skip Jira`, or the `--skip-jira` flag is set (including together
+with `--auto`), skip this step and step 3 entirely** — there is no issue key, URL, or drafted
+description. Go straight to step 4, writing the spec file described there from the item's text
+directly instead of a Jira description.
 
 Otherwise, invoke the `zibby:jira` skill with the item's text as input, passing `sprint: none`
 explicitly whatever this repo's config says. The sprint is set in step 5, when implementation
@@ -172,11 +207,13 @@ level, and that check is never pre-answered: if it finds a strong match, let it 
 proceed (create anyway, reuse, or refine) exactly as it's written — each duplicate is an independent
 decision even within this run.
 
-**`--auto`:** first check the ledger for this item's row — if it already carries an issue key
-from an earlier, interrupted pass of this run, reuse that issue and resume at step 3. Re-filing it
-would find the issue this very run created and skip the item as a duplicate of itself.
+**`--auto`, without `--skip-jira`:** first check the ledger for this item's row — if it already
+carries an issue key from an earlier, interrupted pass of this run, reuse that issue and resume at
+step 3. Re-filing it would find the issue this very run created and skip the item as a duplicate of
+itself.
 
-Otherwise pass `zibby:jira` the autonomy level `auto` explicitly, which is the one case where
+Otherwise (still `--auto`, still no `--skip-jira`) pass `zibby:jira` the autonomy level `auto`
+explicitly, which is the one case where
 pre-answering that question is correct — the user authorized it when they asked for an overnight
 run. That level also turns its own would-be questions into failure statuses. Handle each by ending
 the item and moving on, never by deciding for it:
@@ -201,51 +238,30 @@ every task an implementer sees, so don't skip or shorten it.
 item's number) and write the item's raw text as the spec content — no Jira title, URL, or drafted
 description to include.
 
-### 4. Write the plan — and get it checked
+### 4. Write the plan
 
 Invoke `superpowers:writing-plans`, pointing it at the spec file from step 3. It saves a plan to
-`docs/superpowers/plans/` and asks which execution approach to use.
+`docs/superpowers/plans/` — running its own self-review (coverage, placeholder scan, type
+consistency) before it hands the plan back, fixing anything that check finds rather than reporting
+it — and then asks which execution approach to use.
 
-**Before answering that**, the plan's *content* gets checked. This is the step the whole skill
-exists for — running `subagent-driven-development` on an unexamined plan is what this pipeline was
-built to avoid — so it is never skipped, only performed differently depending on the run's autonomy
-level.
+This pipeline adds no independent check of its own on top of that self-review. It did, once: a fresh
+subagent re-reading the plan cold and voting `SOUND`/`SOUND_WITH_NOTES`/`DEFECTIVE`. It was removed —
+a reviewer with no stake in the plan almost always finds *something* to flag, on a plan that was
+perfectly implementable, and the rule this pipeline had (never repair a `DEFECTIVE` verdict
+unattended, only skip the item) meant that reflex reliably stopped runs on ordinary, fixable plans
+rather than only on genuinely broken ones. `writing-plans`' own self-review is the check; trust it.
 
-**review — the user checks it.** Show them the plan (or a tight summary — files touched, task list,
-and anything you'd flag) and ask if it needs changes. This is not optional and not something to fold
-into a "run everything hands-off" preference. Apply any requested changes before moving on.
+**review — the user checks it anyway.** Show them the plan (or a tight summary — files touched, task
+list, and anything you'd flag) and ask if it needs changes. This is a different kind of check
+(human judgement on intent and scope, not a mechanical re-verification) and stays optional-but-asked
+in this one mode; apply any requested changes before moving on.
 
-**skip Jira, or `--auto` — an independent reviewer checks it instead of the user.** Dispatch a fresh
-subagent on the most capable available model — fresh because a reviewer that watched you write the
-plan will agree with it. Hand it two file paths, the spec and the plan, and nothing else; do not
-summarize either into the prompt, and do not tell it what you think of the plan. Ask it for four
-verdicts:
+**skip Jira and `--auto` — move straight to execution.** No further gate. If the plan turns out to
+be wrong, that surfaces in step 5 or step 6 the normal way (a task's own review loop, a red test
+suite) and is handled by those steps' existing failure handling, not by a plan-level checkpoint here.
 
-1. **Coverage** — does every requirement in the spec map to a task in the plan? Name the gaps.
-2. **Placeholders** — any "TBD", "handle edge cases", "similar to Task N", or a code step with no
-   code? (`writing-plans` calls these plan failures; it also self-reviews for them, which is
-   exactly why a second, independent pass is worth its cost.)
-3. **Consistency** — do the types, signatures, and names used in later tasks match what earlier
-   tasks define?
-4. **Scope and safety** — does any task reach outside this repo, touch credentials, migrate or
-   delete data, rewrite git history, or change CI/release/publishing configuration?
-
-It returns `SOUND`, `SOUND_WITH_NOTES` (plus the notes), or `DEFECTIVE` (plus the reasons).
-
-- `SOUND` → proceed.
-- `SOUND_WITH_NOTES` → record the notes (in the ledger, if this run keeps one) and carry them
-  verbatim into step 5's dispatch, so the executing skill's own review loop sees them.
-- `DEFECTIVE`, or any finding under verdict 4:
-  - **review or skip Jira (interactive)** — stop and show the user the plan and the reviewer's
-    reasons, and ask how to proceed, before touching this item further.
-  - **`--auto`** — no one is there to ask. Skip the item. Record
-    `skipped: plan defect — <reason>` and move to the next one. The Jira issue stays open and the
-    TODO item stays unchecked, which is the correct morning state: a human reads the reason and
-    decides. Do not attempt a repair round — a plan a reviewer called defective is a plan whose spec
-    or research is wrong upstream, and re-planning it with nobody watching just produces a second wrong plan
-    more confidently.
-
-Once the plan is confirmed (any path above), answer the execution-approach question with
+Once the plan is saved (and, under `review`, confirmed), answer the execution-approach question with
 **Subagent-Driven** — this pipeline always uses `superpowers:subagent-driven-development`, never
 inline execution.
 
@@ -292,8 +308,7 @@ in how it implements or reviews. It ends by directing you to
 `superpowers:finishing-a-development-branch`.
 
 **`--auto`:** state the standing authorizations from the top of this file in the dispatch, so
-its own stop conditions resolve without a human. Carry any `SOUND_WITH_NOTES` findings from step 4
-in the same dispatch. When it finishes, copy its "Rulings I made" list into the ledger — those are
+its own stop conditions resolve without a human. When it finishes, copy its "Rulings I made" list into the ledger — those are
 decisions taken on the user's behalf while they slept, and the morning report is the only place they
 will ever see them.
 
@@ -305,12 +320,16 @@ item. Do not retry the item in the same run.
 
 Invoke `superpowers:finishing-a-development-branch`. It runs the test suite and, once green,
 presents a menu and normally waits for a human answer. For this pipeline specifically, the user
-has pre-authorized the answer: when the menu appears, choose **"2. Push and create a Pull
+has pre-authorized the answer — which one depends on `--no-pr`.
+
+**Without `--no-pr` (default):** when the menu appears, choose **"2. Push and create a Pull
 Request"** and create it as a **draft** (`gh pr create --draft`, or the equivalent flag for
-whatever forge tooling the skill reaches for) — don't stop and wait for that menu click. Every
-other part of that skill (running tests, detecting the environment, determining the base branch,
-cleanup) proceeds exactly as it's written; this pipeline only pre-answers the integration
-question, and only with this one option.
+whatever forge tooling the skill reaches for) — don't stop and wait for that menu click. If
+`--target <branch>` was given, open the PR against `<branch>` (`gh pr create --base <branch>`, or
+the equivalent) instead of whatever step 3 would otherwise detect or ask about; without `--target`,
+let step 3 detect the base branch as usual. Every other part of that skill (running tests,
+detecting the environment, cleanup) proceeds exactly as it's written; this pipeline only
+pre-answers the integration question, and only with this one option.
 
 GitHub's Jira integration links a PR to its issue from the bare issue key appearing in the branch
 name, a commit message, or the PR title — not from any particular keyword ("Resolves", "Fixes", …)
@@ -321,18 +340,37 @@ for human readers — e.g. a line like `<ISSUE-KEY>: <issue URL>` — since `fin
 own template has no notion of Jira, but don't rely on the body's wording for the integration itself.
 Report the created PR's URL once it exists.
 
+**With `--no-pr`:** when the menu appears, choose **"1. Merge back to `<base-branch>` locally"**
+instead, with `<base-branch>` set to `--target`'s branch if given, or whatever step 3 would
+otherwise detect or ask about if `--target` was omitted. That option merges the feature branch,
+re-runs the test suite on the merged result, and — once green — deletes the feature branch and
+removes its worktree itself (that skill's own step 6); this pipeline's separate worktree-removal
+instruction at the end of step 7 is then redundant, see the note there. The merge stays local: this
+pipeline never pushes `<base-branch>` onward, even to `origin` — that's left to the user. If tests
+fail on the merged result, that skill stops there and leaves the worktree and branch in place
+rather than merging broken code; treat this the same as a red test suite below
+(`failed: tests red on merge`) and move on without deleting anything.
+
 **`skip Jira`:** there is no issue to link — omit the `Resolves` line and the transition below
-entirely.
+entirely. This applies the same way under `--no-pr` and under the default PR path.
 
-Once the PR exists, move the Jira issue to its review status the same best-effort way as step 5:
-call `getTransitionsForJiraIssue` again and pick the transition whose name best matches "review"
-(case-insensitively, allowing for localization), falling back to a lone `indeterminate`-category
-candidate only when no name matches. Call `transitionJiraIssue` with it. A missing match or a
-failed call is noted, not fatal, exactly as in step 5 — never skip the item or withhold the PR over
-a transition that didn't go through.
+Once integration completes — a PR opened (default) or a successful local merge (`--no-pr`) — move
+the Jira issue to a status reflecting which one happened, the same best-effort way as step 5:
 
-If the test suite is red and the branch never reaches a PR, record `failed: tests red` with the
-failing suite's name and move on. An item without a PR URL is never marked done in step 7.
+- **Default:** transition it to whatever best matches "review" (case-insensitively, allowing for
+  localization), since a PR is a request for human review, falling back to a lone
+  `indeterminate`-category candidate only when no name matches.
+- **`--no-pr`:** the work already landed on `<base-branch>` with no review step in between, so
+  transition it to whatever best matches "done"/"resolved" instead, falling back to a lone
+  `done`-category candidate only when no name matches.
+
+Call `getTransitionsForJiraIssue` and `transitionJiraIssue` as in step 5. A missing match or a
+failed call is noted, not fatal, exactly as in step 5 — never skip the item or withhold the PR or
+merge over a transition that didn't go through.
+
+If the test suite is red and the branch never integrates — no PR opened under the default path, no
+merge landed under `--no-pr` — record `failed: tests red` with the failing suite's name and move
+on. An item that hasn't integrated is never marked done in step 7.
 
 ### 7. Close the loop
 
@@ -341,17 +379,25 @@ create a Pull Request" in step 6 leaves you there rather than returning to the m
 run `todo done` from the **main repo checkout's working directory, not the worktree**. `todo`
 resolves TODO.md via `git rev-parse --show-toplevel` from wherever it's invoked, and a worktree has
 its own toplevel; running it from inside the worktree would flip the checkbox in a copy of TODO.md
-that never makes it back to the branch this pipeline started from.
+that never makes it back to the branch this pipeline started from. Choosing "1. Merge back
+locally" under `--no-pr` already returns you to the main checkout as part of that option, so this
+is only a concern in the default (PR) path.
 
-`todo done <n> <PR-URL>` — the TODO.md item now points at the shipped (draft) PR. The Jira issue
-itself is reachable from the PR body and from the plan's spec file, so one link in TODO.md is
-enough; don't also try to record the Jira link here.
+`todo done <n> <PR-URL>` in the default path — the TODO.md item now points at the shipped (draft)
+PR. **`--no-pr`:** there is no PR URL; instead run `todo done <n> <base-branch>@<short-sha>` with
+the merge commit's short SHA on `<base-branch>`, so the item still points at something that
+resolves to the shipped work. The Jira issue itself is reachable from the PR body (default) or the
+plan's spec file (either path), so one link in TODO.md is enough; don't also try to record the
+Jira link here.
 
-Whatever stage an item ends at — a shipped PR or any of the `failed`/`skipped` outcomes above —
+Whatever stage an item ends at — integrated work or any of the `failed`/`skipped` outcomes above —
 remove its worktree before moving to the next item (`git worktree remove --force
-./worktrees/<its-branch-name>`) once you no longer need it for the report. This applies in every
-mode: `./worktrees/` is shared across the whole run, and a leftover entry from a dead or finished
-item just clutters it for whichever item comes next.
+./worktrees/<its-branch-name>`) once you no longer need it for the report — **except** on the
+`--no-pr` success path, where `finishing-a-development-branch`'s own "Merge back locally" option
+already removed the worktree and deleted the branch as part of its step 6; running the removal
+again there is a no-op at best, so skip it. This applies in every other case regardless of mode:
+`./worktrees/` is shared across the whole run, and a leftover entry from a dead or finished item
+just clutters it for whichever item comes next.
 
 **`--auto`:** append the item's finished row to the ledger, return to the main checkout, and
 go back to step 1 — `todo next` when running the whole backlog, or the next number in the span when
@@ -381,7 +427,7 @@ The report has four parts, in this order:
 | # | TODO item | Jira | PR | Status |
 |---|---|---|---|---|
 | 4 | Add `.env.example` per package | [CZ3TDR1-601](url) | [#42](url) | ✅ done |
-| 5 | Remove the repo-documentation skill | [CZ3TDR1-602](url) | — | ⏭️ skipped: plan defect |
+| 5 | Remove the repo-documentation skill | [CZ3TDR1-602](url) | — | ⏭️ skipped: CZ3TDR1-602 is already done |
 | 6 | Move `dev` env vars to flags | — | — | ⏭️ skipped: duplicate of CZ3TDR1-588 |
 | 7 | `shoptet version` command | [CZ3TDR1-603](url) | — | ❌ failed: tests red (`test:unit`) |
 

@@ -128,8 +128,13 @@ search page feels slow" needs a broader one (or a few in parallel over distinct 
 that digs until it can point at an actual candidate cause. Compose the description yourself from
 what comes back — don't ask the subagent to draft the issue text.
 
-Write the description as Markdown (the default `contentFormat`) with short sections as needed —
+Write the description as Markdown (`contentFormat: "markdown"`) with short sections as needed —
 typically a why, a what, and any file references — rather than one undifferentiated paragraph.
+Markdown is fine for prose, but if the body ever needs tickable acceptance criteria, a plain
+`- [ ]` line does **not** render as a checkbox on Jira — it comes back as escaped `* \[ \]` text.
+Real checkboxes need the description sent as an ADF document (`contentFormat: "adf"`) with the
+criteria as a `taskList` of `taskItem` nodes (`state: "TODO"`). Stick to plain markdown sections
+unless a caller actually asks for acceptance-criteria checkboxes.
 
 ## 4b. Decide the issue type from what the research found
 
@@ -212,11 +217,32 @@ resolved a parent — `parent: {"key": "<PARENT-KEY>"}`. `parent` is the system 
 is no separate "Epic Link" custom field to set on a modern Jira Cloud project, so don't look for
 one.
 
-## 8. Report the result
+## 8. Move the issue out of its default creation status
+
+A freshly created issue lands in whatever status its workflow uses as the initial one — on this
+board, that is **Request**. Issues this skill files are ready to be picked up, not just requests
+waiting for triage, so move it to **TODO** right after creation: call `getTransitionsForJiraIssue`
+for the new issue's key, find the transition whose target status is named `To Do` (Jira's internal
+name for the TODO column — match case-insensitively and allow for the `To Do`/`TODO` spelling), and
+call `transitionJiraIssue` with that transition's id. If no such transition exists from the
+issue's current status (workflow doesn't allow it directly, or the status is already something
+else), note that in the report below rather than guessing another transition or leaving the issue
+silently stuck in Request.
+
+## 9. Report the result
 
 State the created (or reused) issue's key, its type, its parent if it has one, its sprint if one
 was assigned (by name, and say so plainly if `sprint: current` was asked for but couldn't be
-resolved), and its `webUrl` plainly, e.g.
+resolved), its resulting status (`TODO`, or the status it was left in if step 8 couldn't move it),
+and its `webUrl` plainly, e.g.
 `Created CZ3TDR1-583: https://teamdotblue.atlassian.net/browse/CZ3TDR1-583` — a caller like
 `zibby:todo-driven-development` needs exactly this to link the item back with `todo done <n> <url>` and,
 later, in a PR description.
+
+## Notes
+
+- There is no delete tool in this MCP. A mistakenly created issue can only be transitioned to a
+  terminal status (Done/Cancelled), not hard-deleted; deletion is manual in the Jira UI. Tell the
+  user this if they ask to undo a create.
+- Jira labels cannot contain spaces. Fine for `agentic` and the configured `labels`, but don't
+  invent a multi-word label.
