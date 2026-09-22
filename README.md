@@ -10,12 +10,18 @@ the way to a draft PR, and the standup that reports what came out of it.
 | `zibby:jira` | Turn any description of work into a researched Jira issue. |
 | `zibby:plan-to-backlog` | Cut a written implementation plan into deliverable chunks: one Epic, an issue per chunk, `Blocks` links, and a short summary line per chunk in `TODO.md`. |
 | `zibby:todo-driven-development` | Drive a TODO item to a draft PR: issue → plan → implementation → PR. |
-| `zibby:standup` | Fill in the daily Slack standup thread from yesterday's PRs, reviews, Claude sessions and meetings. Pinned to Sonnet; renders on Haiku. |
+| `zibby:standup` | Write up what you did in a period — PRs, reviews, Claude sessions and meetings — and print it. Takes the period in plain language (`/standup posledních 14 dní`), defaults to yesterday. Pinned to Sonnet; renders on Haiku. |
+| `zibby:standup-post` | The unattended half: find the standup thread in Slack, drive the same pipeline for yesterday, post into the thread. What the 07:00 weekday routine runs. |
 
 They install together — this is one way of working, not a menu. `zibby:plan-to-backlog` fills the
 backlog, `zibby:todo-driven-development` empties it, both lean on `zibby:todo` and `zibby:jira`,
 and `zibby:standup` reports the result each morning. The standup is the one that stands on its
 own: it reads GitHub and your session history, not the TODO backlog.
+
+Both standup skills are **user-invocable only** (`disable-model-invocation: true`): they hit APIs
+and, in `standup-post`'s case, post publicly under your name. An agent never starts one on its own.
+The morning routine is a macOS LaunchAgent running `claude -p "/standup-post"`, installed with
+`skills/standup-post/scripts/install-routine.sh`.
 
 ## Install
 
@@ -62,12 +68,13 @@ to you:
 - `jq` — `zibby:standup` builds its collection JSON with it. Blocking for the standup.
 - **Atlassian MCP server**, authenticated — `zibby:jira` needs it. Log in with `/mcp`.
   `zibby:standup` uses it too, for ticket summaries, but degrades to PR titles without it.
-- **Slack MCP server**, authenticated — `zibby:standup` reads the standup thread and posts into
-  it. Blocking for the standup.
+- **Slack MCP server**, authenticated — `zibby:standup-post` reads the standup thread and posts
+  into it. Blocking for `zibby:standup-post`; `zibby:standup` itself never touches Slack.
 - **Microsoft 365 MCP server**, authenticated — `zibby:standup` reads the Outlook calendar for the
   meeting line. Not blocking: without it the standup simply has no `Meetingy` group.
 - A `standup:` key in `~/.zibby/zibby-skills/config.yml` — a **global** config, unlike the
-  per-repo one below. `slack.channel`, `github.org` and `github.login` are required; `repos`
+  per-repo one below. `github.org` and `github.login` are required, and `slack.channel` on top of
+  those for `zibby:standup-post`; `repos`
   (the per-project headings) fills itself in as new repos appear, and `sessions.excludeRepos`
   is where personal projects go so a weekend side project stays out of a work standup.
 - A `jira:` key in `.zibby/zibby-skills/config.yml` at the root of each repo you file issues from,
@@ -98,6 +105,7 @@ skills/jira/                      SKILL.md + references/sprint.md
 skills/plan-to-backlog/           SKILL.md + references/chunking.md
 skills/todo-driven-development/
 skills/standup/                   SKILL.md + references/format.md + scripts/{collect,cache-heading}.sh
+skills/standup-post/              SKILL.md + scripts/install-routine.sh (the weekday LaunchAgent)
 install.sh
 tests/                            reference and install smoke checks
 ```

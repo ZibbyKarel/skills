@@ -1,7 +1,7 @@
 ---
 name: plan-to-backlog
 description: "Turn a written implementation plan into a ready backlog — decompose it into deliverable chunks, file each as a Jira issue under one Epic, link the dependencies between them, and leave a short one-line summary per chunk in TODO.md while the full description lives in the issue. Use this when the user has a plan for a large phase somewhere (a file in the repo, a Confluence page, a Jira description, or pasted text) and wants it cut into smaller shippable pieces with issues created — 'rozsekej tenhle plán do issues', 'break this phase into tickets', 'prepare a backlog from this plan'. Also use it to extend an existing epic when the plan has grown: it compares against the epic's current children and only files what is missing. This is a conductor over zibby:jira and zibby:todo — it owns the decomposition, the parent, and the dependency graph, and nothing else."
-argument-hint: "<plan file | plan URL | pasted plan> [--parent <ISSUE-KEY>] [--skip-jira]"
+argument-hint: "<plan file | plan URL | pasted plan> [--parent <ISSUE-KEY>] [--no-jira]"
 ---
 
 # plan-to-backlog
@@ -23,7 +23,7 @@ type), `zibby:todo` writes every TODO.md line. Don't reimplement either. If `zib
 
 If a caller passed a level, use it. Otherwise ask which of `confirm` or `auto` — never assume.
 
-**`--skip-jira`** is orthogonal to the level: it files no issues at all (step 8).
+**`--no-jira`** is orthogonal to the level: it files no issues at all (step 8).
 
 ## 2. Failure statuses (auto only)
 
@@ -179,7 +179,7 @@ would just drift from Jira at the first rename. `--section` puts the whole batch
 `todo.py` matches that section by the parent key it contains, so a later run lands in the same
 section even if the epic was renamed meanwhile.
 
-**`--skip-jira`:** no issues, no epic, no links. Write each chunk's full description to
+**`--no-jira`:** no issues, no epic, no links. Write each chunk's full description to
 `docs/superpowers/specs/<slug>.md` and add the TODO line with `--ref` pointing at that file and
 `--section "<phase title>"`. The description has to live somewhere or the one-line summary is all
 that survives; `zibby:todo-driven-development` already reads specs from that directory.

@@ -80,15 +80,20 @@ gh_fatal() {
   exit 3
 }
 
-jira_key_from() { # jira_key_from <branch> <title>
+jira_key_from() { # jira_key_from <branch> <title> [body]
   # Not anchored to the start: Jira's own GitHub integration recognizes an issue key
-  # anywhere in the branch name or title (e.g. "karel/CZ3TDR1-630-fix-thing"), so a
+  # anywhere in the branch name, title, or body (e.g. "karel/CZ3TDR1-630-fix-thing"), so a
   # PR with an issue genuinely attached in Jira must still resolve here — otherwise
-  # the render falls back to the PR number, which is the bug this fixes.
-  local branch="${1:-}" title="${2:-}" key=""
+  # the render falls back to the PR number, which is the bug this fixes. Branch first
+  # (deliberately named, most reliable), then title, then the description last — a
+  # description is free text and the least likely place a key is the *first* one mentioned.
+  local branch="${1:-}" title="${2:-}" body="${3:-}" key=""
   key="$(printf '%s' "$branch" | grep -oE '[A-Z][A-Z0-9]+-[0-9]+' | head -1)"
   if [[ -z "$key" ]]; then
     key="$(printf '%s' "$title" | grep -oE '[A-Z][A-Z0-9]+-[0-9]+' | head -1)"
+  fi
+  if [[ -z "$key" ]]; then
+    key="$(printf '%s' "$body" | grep -oE '[A-Z][A-Z0-9]+-[0-9]+' | head -1)"
   fi
   printf '%s' "$key"
 }
@@ -99,9 +104,19 @@ jira_key_from() { # jira_key_from <branch> <title>
 # window or one that got merged in it — a PR opened last week and merged yesterday is
 # yesterday's work, and searching only on creation drops it.
 
+# GitHub search returns at most SEARCH_LIMIT results and says nothing when it truncates, so a
+# window wide enough to exceed it would silently drop work. A day never comes close; a month
+# plausibly does. Detect the ceiling by hitting it exactly and note it — the render can't know
+# what it never received, but the run can at least say so.
+SEARCH_LIMIT=500
+
 search_prs() { # search_prs <flag...> — one search, JSON array or fatal
-  local out
-  out="$(gh search prs --owner "$ORG" --limit 100 "$@" 2>&1)" || gh_fatal "$out"
+  local out count
+  out="$(gh search prs --owner "$ORG" --limit "$SEARCH_LIMIT" "$@" 2>&1)" || gh_fatal "$out"
+  count="$(printf '%s' "$out" | jq 'length' 2>/dev/null || printf '0')"
+  if [[ "$count" -ge "$SEARCH_LIMIT" ]]; then
+    note "search-truncated: a GitHub search hit the ${SEARCH_LIMIT}-result ceiling; this window is too wide to collect completely"
+  fi
   printf '%s' "$out"
 }
 
@@ -120,13 +135,14 @@ printf '%s\n%s\n' "$created_raw" "$merged_raw" \
 while IFS=$'\t' read -r nwo number; do
   [[ -n "${number:-}" ]] || continue
   view="$(gh pr view "$number" --repo "$nwo" \
-    --json number,title,url,state,headRefName,createdAt,mergedAt,isDraft 2>&1)" \
+    --json number,title,url,state,headRefName,createdAt,mergedAt,isDraft,body 2>&1)" \
     || { note "pull request $nwo#$number could not be read: $view"; continue; }
 
   created_at="$(printf '%s' "$view" | jq -r '.createdAt // ""')"
   merged_at="$(printf '%s' "$view"  | jq -r '.mergedAt // ""')"
   branch="$(printf '%s' "$view"     | jq -r '.headRefName // ""')"
   title="$(printf '%s' "$view"      | jq -r '.title // ""')"
+  body="$(printf '%s' "$view"       | jq -r '.body // ""')"
 
   # `merged` wins over `created` for a PR that did both inside the window: the standup
   # should say the work shipped, not that it was opened.
@@ -138,7 +154,7 @@ while IFS=$'\t' read -r nwo number; do
     continue
   fi
 
-  key="$(jira_key_from "$branch" "$title")"
+  key="$(jira_key_from "$branch" "$title" "$body")"
   printf '%s' "$view" | jq -c \
     --arg repo "${nwo##*/}" --arg nwo "$nwo" --arg action "$action" \
     --arg at "$at" --arg key "$key" '
@@ -216,7 +232,7 @@ while IFS=$'\t' read -r nwo number; do
   [[ "$(printf '%s' "$acts" | jq 'length')" -gt 0 ]] || continue
 
   view="$(gh pr view "$number" --repo "$nwo" \
-    --json number,title,url,state,headRefName,author,isDraft 2>&1)" \
+    --json number,title,url,state,headRefName,author,isDraft,body 2>&1)" \
     || { note "pull request $nwo#$number could not be read: $view"; continue; }
 
   pr_login="$(printf '%s' "$view" | jq -r '.author.login // ""')"
@@ -224,7 +240,8 @@ while IFS=$'\t' read -r nwo number; do
   pr_author="$(author_name "$pr_login")"
   branch="$(printf '%s' "$view" | jq -r '.headRefName // ""')"
   title="$(printf '%s' "$view"  | jq -r '.title // ""')"
-  key="$(jira_key_from "$branch" "$title")"
+  body="$(printf '%s' "$view"   | jq -r '.body // ""')"
+  key="$(jira_key_from "$branch" "$title" "$body")"
 
   printf '%s' "$view" | jq -c \
     --argjson acts "$acts" --arg repo "$repo" --arg owner "$owner" \
@@ -305,6 +322,15 @@ fi
 # relatedPr is set where a session's branch or Jira key matches a PR already collected.
 # Marking beats dropping: the session often explains why the PR happened, and the render
 # step can fold the two into one bullet — but nothing should read as two achievements.
+#
+# Sessions also get a jiraKey, same as PRs, so a session on a ticketed branch with no PR
+# yet (still in progress) still renders as a linked bullet rather than a bare description.
+# Branch name is the reliable source (deliberately named, same as PRs). aiTitle/lastPrompt
+# are free text — a stray "UTF-8" or "PHP-8" reads like a key but isn't one — so a
+# text-derived key only counts when its project prefix was *already* seen from a reliable
+# branch somewhere in this same window (a PR's branch, or another session's branch). That
+# catches "typed the key while talking about a ticket already worked on this window" without
+# inventing a project that never showed up anywhere reliable.
 
 jq -n \
   --slurpfile created     <(cat "$WORK/created.jsonl") \
@@ -314,10 +340,17 @@ jq -n \
   --arg from "$FROM" --arg to "$TO" --arg org "$ORG" --arg login "$LOGIN" \
   --argjson excluded "$(printf '%s\n' "${EXCLUDE_REPOS[@]+"${EXCLUDE_REPOS[@]}"}" \
     | jq -R 'select(length > 0)' | jq -s .)" '
+  def key_of($s): ($s // "") as $s | ([$s | scan("[A-Z][A-Z0-9]+-[0-9]+")] | first) // null;
+  def prefix_of($k): if $k == null then null else ($k | sub("-[0-9]+$"; "")) end;
+
   ($created     // []) as $c |
   ($contributed // []) as $r |
   ($sessions    // []) as $s |
   ($c + $r) as $prs |
+  ($s | map(key_of(.gitBranch))) as $sessBranchKeys |
+  (([$c[].jiraKey, $r[].jiraKey] + $sessBranchKeys)
+    | map(select(. != null)) | map(prefix_of(.)) | unique) as $strongPrefixes |
+
   {
     window: {from: $from, to: $to, org: $org, login: $login},
     created: ($c | sort_by(.at)),
@@ -325,6 +358,12 @@ jq -n \
     sessions: ($s
       | map(select(.repo == null or (.repo | IN($excluded[])) == false))
       | map(. as $sess
+          | (key_of($sess.gitBranch)) as $branchKey
+          | ((["\($sess.aiTitle // "")", "\($sess.lastPrompt // "")"]
+              | map([scan("[A-Z][A-Z0-9]+-[0-9]+")]) | add
+              | map(select(prefix_of(.) as $p | $strongPrefixes | index($p) != null))
+              | first) // null) as $textKey
+          | . + {jiraKey: ($branchKey // $textKey)}
           | ($prs | map(select(. as $pr
               | $sess.gitBranch != null
                 and ($pr.branch == $sess.gitBranch

@@ -1,7 +1,7 @@
 ---
 name: todo-driven-development
 description: "Drive a project's TODO.md items all the way from backlog to a draft PR — file a researched Jira issue, write and confirm an implementation plan, execute it with subagent-driven development, and open the resulting draft PR linked back to the issue. Use this when the user wants to work through their TODO.md, either one specific item ('process item 3', 'work on the flaky-test todo'), a range of items ('process items 1-4', 'do the first 4'), or the whole backlog ('go through my todo list', 'process everything in TODO.md'), including as a --auto overnight run that reports a table of issues and PRs in the morning. This is a thin conductor over three other skills — zibby:todo, zibby:jira, and the superpowers plugin — not a reimplementation of any of them."
-argument-hint: "<item-number> | <start>-<end> | all | (<start>-<end> | all) --auto [--skip-jira] [--target <branch>] [--no-pr]"
+argument-hint: "<item-number> | <start>-<end> | all | (<start>-<end> | all) --auto [--no-jira] [--target <branch>] [--no-pr]"
 ---
 
 # todo-driven-development
@@ -27,8 +27,8 @@ stop rather than reimplementing any part of it.
   instead of a conversation. Only enter this mode when the user asks for it explicitly (`all
   --auto`, `1-4 --auto`, "run it overnight", "let it run while I sleep"). Never infer it
   from impatience.
-- **`--skip-jira`:** a flag, combinable with any of the above including `--auto` (`all --auto
-  --skip-jira`, `1-4 --auto --skip-jira`), that pre-answers the Jira question from the "Autonomy
+- **`--no-jira`:** a flag, combinable with any of the above including `--auto` (`all --auto
+  --no-jira`, `1-4 --auto --no-jira`), that pre-answers the Jira question from the "Autonomy
   level" section below as **skip Jira** instead of asking or, for `--auto`, instead of `--auto`'s
   usual "always files Jira issues" default. See that section and "What `--auto` does and does not
   relax" for exactly what this does and doesn't change.
@@ -66,16 +66,16 @@ this run.
 
 `--auto` never asks this question — it already moves straight from a saved plan to execution, the
 same as `skip Jira`, plus the full question-suppression described below. By default it always files
-Jira issues; pass the `--skip-jira` flag alongside it (`all --auto --skip-jira`, `1-4 --auto
---skip-jira`) to make an overnight run behave as `skip Jira` for every Jira-related step too — no
+Jira issues; pass the `--no-jira` flag alongside it (`all --auto --no-jira`, `1-4 --auto
+--no-jira`) to make an overnight run behave as `skip Jira` for every Jira-related step too — no
 issues filed, no transitions attempted, no `<ISSUE-KEY>` in branch or PR title — while every other
 `--auto` behavior (continuous execution, standing authorizations, ledger, morning report) is
 unchanged. Without the flag, `skip Jira` is only offered as an interactive choice in one-item,
-range, and whole-backlog (non-`--auto`) runs; `--skip-jira` also works as a flag in those modes, to
+range, and whole-backlog (non-`--auto`) runs; `--no-jira` also works as a flag in those modes, to
 pre-answer the same question without asking.
 
 Every later step in this pipeline that says "**skip Jira:**" means: this run has no Jira issue for
-the item, whether that's because the interactive choice was `skip Jira` or because `--skip-jira` was
+the item, whether that's because the interactive choice was `skip Jira` or because `--no-jira` was
 passed (with or without `--auto`). Read every such bullet below as covering both.
 
 ## Every item runs in its own worktree
@@ -132,7 +132,7 @@ item 1.
    `superpowers:subagent-driven-development` appear in this session's available skills. A plugin
    listed as enabled by `claude plugin list` is not the same as a skill the `Skill` tool will
    accept — verify the skill, not the plugin. Without it every item dies at step 4 or step 5.
-2. **Jira is reachable and authenticated.** Skip this check entirely when `--skip-jira` is also
+2. **Jira is reachable and authenticated.** Skip this check entirely when `--no-jira` is also
    given — this run touches no Jira issue, so there is nothing to verify. Otherwise call
    `atlassianUserInfo` once. The Atlassian MCP server is interactively authenticated, so a token
    that expired since the last session turns every item into an identical failure.
@@ -185,12 +185,12 @@ front and leaves each TODO.md line pointing at its own, so a line can arrive her
 - If the fetch fails, treat it as `JIRA_UNAVAILABLE` for this item rather than filing a new issue
   around it — filing a second issue for work that already has one is the exact outcome this check
   exists to prevent.
-- A ref that is **not** a Jira issue — a PR URL, or a path to a spec file from a `--skip-jira`
+- A ref that is **not** a Jira issue — a PR URL, or a path to a spec file from a `--no-jira`
   batch — is not an issue reference. Carry on with this step as written below.
 
 Then continue at step 3 with the fetched issue's key, URL and description.
 
-**If this run's autonomy level is `skip Jira`, or the `--skip-jira` flag is set (including together
+**If this run's autonomy level is `skip Jira`, or the `--no-jira` flag is set (including together
 with `--auto`), skip this step and step 3 entirely** — there is no issue key, URL, or drafted
 description. Go straight to step 4, writing the spec file described there from the item's text
 directly instead of a Jira description.
@@ -207,12 +207,12 @@ level, and that check is never pre-answered: if it finds a strong match, let it 
 proceed (create anyway, reuse, or refine) exactly as it's written — each duplicate is an independent
 decision even within this run.
 
-**`--auto`, without `--skip-jira`:** first check the ledger for this item's row — if it already
+**`--auto`, without `--no-jira`:** first check the ledger for this item's row — if it already
 carries an issue key from an earlier, interrupted pass of this run, reuse that issue and resume at
 step 3. Re-filing it would find the issue this very run created and skip the item as a duplicate of
 itself.
 
-Otherwise (still `--auto`, still no `--skip-jira`) pass `zibby:jira` the autonomy level `auto`
+Otherwise (still `--auto`, still no `--no-jira`) pass `zibby:jira` the autonomy level `auto`
 explicitly, which is the one case where
 pre-answering that question is correct — the user authorized it when they asked for an overnight
 run. That level also turns its own would-be questions into failure statuses. Handle each by ending
@@ -389,6 +389,19 @@ the merge commit's short SHA on `<base-branch>`, so the item still points at som
 resolves to the shipped work. The Jira issue itself is reachable from the PR body (default) or the
 plan's spec file (either path), so one link in TODO.md is enough; don't also try to record the
 Jira link here.
+
+**Commit the checkbox, in the main checkout, right after `todo done`.** `todo done` only edits the
+file on disk — left uncommitted, it's exactly the kind of pre-existing change step 0.3 (`--auto`
+pre-flight) and `finishing-a-development-branch`'s own checks reject as a dirty base repo, which
+would stall the very next item or run. Stage and commit `TODO.md` alone (`git add TODO.md`), never
+a broader `git add -A` that could sweep up unrelated in-progress edits sitting in the main
+checkout, with a message naming the item, e.g. `Mark TODO item <n> done: <short item text>` —
+followed, on a shared remote, by whatever attribution trailer this session's instructions require.
+This is a plain local commit to the main checkout's current branch, not a push — this pipeline
+never pushes anything but the feature branch (and, under `--no-pr`, never even that). Do this for
+every outcome that reaches `todo done`, in every mode including `--auto`; skip it only when this
+run never called `todo done` in the first place (an item left `failed`/`skipped` — nothing changed
+in TODO.md to commit).
 
 Whatever stage an item ends at — integrated work or any of the `failed`/`skipped` outcomes above —
 remove its worktree before moving to the next item (`git worktree remove --force

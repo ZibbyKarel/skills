@@ -100,7 +100,7 @@ elif mcp_out="$(claude mcp list 2>/dev/null)"; then
   check_mcp atlassian "Atlassian" \
     "zibby:jira cannot reach Jira, and zibby:standup falls back to PR titles" "zibby:jira, zibby:standup"
   check_mcp slack "Slack" \
-    "zibby:standup cannot read the standup thread or post into it" "zibby:standup"
+    "zibby:standup-post cannot read the standup thread or post into it" "zibby:standup-post"
   check_mcp 'microsoft.365\|microsoft_365' "Microsoft 365" \
     "zibby:standup renders no meeting line" "zibby:standup"
 else
@@ -110,7 +110,7 @@ fi
 if [ -f "$HOME/.zibby/zibby-skills/config.yml" ] && grep -q '^standup:' "$HOME/.zibby/zibby-skills/config.yml" 2>/dev/null; then
   ok "standup: config present in ~/.zibby/zibby-skills/config.yml"
 else
-  warn "no 'standup:' key in ~/.zibby/zibby-skills/config.yml — zibby:standup will offer to create one on first run"
+  warn "no 'standup:' key in ~/.zibby/zibby-skills/config.yml — zibby:standup will offer to create one on first run (zibby:standup-post additionally needs slack.channel in it)"
 fi
 
 warn "Each repo you use zibby:jira in needs a '## Jira' section in its README.md — the installer cannot write that for you"

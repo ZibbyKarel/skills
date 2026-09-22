@@ -1,8 +1,8 @@
 # The rendering contract
 
-This is the whole specification for turning a collected standup JSON into the message that goes
-into the thread. `zibby:standup` hands this file plus the JSON path to a subagent; the subagent
-renders and returns the message, nothing else.
+This is the whole specification for turning a collected standup JSON into the message. `zibby:standup`
+hands this file, the JSON path and the window length in days to a subagent; the subagent renders and
+returns the message, nothing else.
 
 ## The one rule that outranks the rest
 
@@ -46,7 +46,10 @@ Meetingy
   output.
 - A blank line between groups. No blank line between bullets.
 - **Flat. No nested bullets, ever.**
-- The output is Slack message text: use Slack's `<url|label>` link syntax, not Markdown links.
+- Links are **Markdown**: `[label](url)`. The output is read in a terminal and pasted by hand into
+  the Slack composer, which turns pasted Markdown links into real links. Slack's own `<url|label>`
+  API syntax pastes as literal angle brackets — never emit it here. The one caller that posts
+  through the API (`zibby:standup-post`) converts these links itself.
 
 ## Bullets
 
@@ -55,13 +58,13 @@ Every bullet is one line, in exactly one of three shapes.
 **1. Work with a Jira ticket** — label is the bare key:
 
 ```
-- <https://teamdotblue.atlassian.net/browse/CZ3TDR1-629|CZ3TDR1-629>: odstranění "oclif" z názvu souborů v CLI
+- [CZ3TDR1-629](https://teamdotblue.atlassian.net/browse/CZ3TDR1-629): odstranění "oclif" z názvu souborů v CLI
 ```
 
 **2. Work with no Jira ticket** — label is `repo#number`:
 
 ```
-- <https://github.com/shoptet/partner-cli/pull/30|partner-cli#30>: gate na check:format ve verify, turbu a CI
+- [partner-cli#30](https://github.com/shoptet/partner-cli/pull/30): gate na check:format ve verify, turbu a CI
 ```
 
 **3. Work with neither** (a session-only item) — no link, no label, description only:
@@ -74,7 +77,7 @@ Every bullet is one line, in exactly one of three shapes.
 needs, and the reviewed PR's own title is the author's work, not yours:
 
 ```
-- <https://github.com/shoptet/cms4/pull/44224|cms4#44224>: CR pro Martina
+- [cms4#44224](https://github.com/shoptet/cms4/pull/44224): CR pro Martina
 ```
 
 The name is the PR author's first name in the **accusative** (`pro Michala`, `pro Romana`,
@@ -85,7 +88,9 @@ one), use it verbatim rather than guessing a human name from it.
 ## What each bullet says
 
 - **`created` entries** — one bullet per PR. Do not merge several PRs into one bullet, even when
-  they are obviously one afternoon's work. A shared Jira key does not merge them either.
+  they are obviously one afternoon's work. A shared Jira key does not merge them either. (This is
+  the **single-day** rule and the default; longer windows collapse deliberately — see "Longer
+  windows", which overrides this one and only this one.)
 - **Verb tense carries the state, and nothing else does.** `action: "merged"` means the work
   landed, so write it as finished ("dodělané", "sjednocené", "přejmenování ... hotové").
   `action: "created"` means it is open, so write it as in progress ("rozpracované", "otevřené PR
@@ -98,15 +103,23 @@ typů`, not `Rozdělení lint a typů`. Two renders of the same day disagreed on
   is already written in the register a standup uses), then the PR title. Compress to a short noun
   phrase — a bullet is a line, not a sentence with a subject.
 - **`contributed` entries** — one bullet per PR, the CR shape above. Multiple reviews or comments
-  on the same PR inside the window are still one bullet.
+  on the same PR inside the window are still one bullet. (Again the **single-day** rule; from eight
+  days up, "Longer windows" collapses reviews to a count per repo and overrides this.)
 
 ## Sessions
 
 `sessions[]` is **supporting detail, not a source of achievements**. Use it for exactly two things:
 
-1. **Work no PR covers.** A session with `relatedPr: null` whose title describes real work that
-   produced no PR and no Jira ticket becomes a shape-3 bullet. This is what stops a day of
-   planning, tuning or research from rendering as an empty standup.
+1. **Work no PR covers.** A session with `relatedPr: null` whose title describes real work becomes
+   a bullet — shape-1 if the session carries a `jiraKey` (a ticket already in progress, just not
+   opened as a PR yet), shape-3 if it doesn't. This is what stops a day of planning, tuning,
+   research, or in-progress ticket work from rendering as an empty standup. A shape-1 session
+   bullet uses the same description source as a PR's (`jiraSummary` first, else the session's own
+   title compressed to a noun phrase) and the same link (`[<jiraKey>](https://<jira.site>/browse/<jiraKey>)`).
+   **Multiple sessions that resolve to the same `jiraKey` with no `relatedPr` collapse into one
+   bullet** — they are conversations about the same ticket, not separate deliverables, and one line
+   per ticket avoids the same work reading as several achievements. Pick the most substantial
+   session's description for that one line.
 2. **Context for a bullet that already exists.** A session with `relatedPr` set describes the same
    work as a PR already in the output. It may sharpen that PR's description. It must **not**
    produce a bullet of its own — the same work counted twice reads as two achievements.
@@ -116,6 +129,20 @@ Judge sessions by their `aiTitle` and `lastPrompt`. Some titles are junk ("Czech
 scrubbed — **skip all of those silently**. A session is only worth a bullet when its title states
 something a colleague would recognize as work. `messageCount` is a weak signal of effort; a large
 count on a junk title is still junk.
+
+**Also skip one-line fixes**, even when the title is legible and clearly describes real work: a
+single config or environment tweak, a one-line gitignore or lint-config addition, fixing a local
+tool path, renaming one variable, adding one translation string. The test is size and shareability,
+not legitimacy — the work genuinely happened, but it is too small to be worth a line in a channel
+the whole team reads, and a standup padded with these reads as busywork rather than progress.
+Examples that should **not** get a bullet: "přidání superpowers do globálního gitignore", "oprava
+PHPCS PHP executable path chyby", "překlady pro API_PARTNER_SETTINGS_DESCRIPTION" (one translation
+key). Keep the bar at: would this change take a reviewer more than a couple of minutes, or does it
+touch more than one concern? A session that designed or restructured something ("architektura a
+design-systém portálu partnera", a new page mounted at a real URL) clears that bar; a single
+tweak inside an existing file does not. This applies **even when the session carries a `jiraKey`**
+— being on a ticketed branch makes a session linkable, not automatically substantial; four sessions
+on the same in-progress ticket can still be three one-line fixes and one real bullet.
 
 A session's `repo` is a **local directory name** and may differ from the GitHub repo slug (a
 checkout of `shoptet/partner-cli` may sit in `shoptet-partner-cli/`). When a session belongs under
@@ -130,6 +157,9 @@ bullet** — never one bullet per meeting. An empty `meetings[]` prints no group
 Sum `minutes` across every entry, round the **total** to the nearest half hour, and write it Czech
 style with a comma: `1h`, `2,5h`, `4h`. A non-empty `meetings[]` never rounds down to nothing —
 anything under half an hour prints `0,5h`.
+
+The naming rule below applies to a **single-day** window only; on anything longer the bullet is
+hours and nothing else (see "Longer windows").
 
 With **four or fewer** meetings, name them in parentheses, in the order they appear (the JSON is
 already chronological). Strip decoration from the subject — leading emoji, and separators that only
@@ -154,6 +184,40 @@ Meetingy
 
 The bullet carries no link, and the count is not spelled out ("dva meetingy"): the hours are the
 point, and the names are only there to answer the question the hours provoke.
+
+## Longer windows
+
+Everything above describes a **single day** — the daily standup, and the shape this format was
+written for. The skill also renders longer windows, because the question "co jsi dělal za posledních
+14 dní" is answered from the same data. The prompt states the window length in days; it selects one
+of three densities. Nothing else about the format changes: same groups, same headings, same three
+bullet shapes, same Czech.
+
+**1 day — everything above, unchanged.**
+
+**2–7 days.** One bullet per PR still, chronological still. Two changes:
+
+- Meetings are **hours only**, never named: `- 12h meetingů`. Naming a week's meetings makes a
+  parenthesis longer than the rest of the standup.
+- Two PRs in the same repo sharing a `jiraKey` collapse into one bullet when both are `merged`.
+  One shipped ticket is one achievement, even when it took three PRs. A still-open PR never
+  collapses into a merged one — the tense would have to lie about one of them.
+
+**8+ days.** This is a summary for a person who asked what you have been up to, not a log:
+
+- Bullets group **by ticket, not by PR**. Every entry sharing a `jiraKey` becomes one bullet, using
+  the `jiraSummary` as its description. PRs with no ticket keep one bullet each.
+- Code reviews collapse to **one bullet per repo**, with no link and no author list:
+  `- 14 code reviews`. Below four reviews in a repo, keep the normal per-PR CR bullets — a number
+  that small reads worse as a count than as lines.
+- Meetings are hours only, as above.
+- Ordering within a group stays chronological on the **earliest** `at` of the entries that were
+  collapsed into each bullet.
+- The description tense follows the collapsed group: finished if everything in it merged,
+  in progress if anything is still open.
+
+Do not add a header, a date range line, a total, or a closing summary at any density. The person
+asked for the period; they know what it was, and the skill states the resolved window separately.
 
 ## Ordering
 

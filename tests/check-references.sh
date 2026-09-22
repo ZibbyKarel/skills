@@ -115,4 +115,31 @@ check_absent_in '(PR #[0-9]|Phase 2[a-z]\b|[a-z0-9-]+/[a-z0-9-]+-cli)' \
   skills/plan-to-backlog/references/chunking.md \
   'chunking rules stay generic (no foreign repo, PR or phase references)'
 
+# The standup/standup-post split. `standup` prints; `standup-post` is the only thing that may
+# reach Slack, and it borrows the pipeline from standup rather than holding a second copy of it.
+check_present '^name: standup-post$'        skills/standup-post/SKILL.md 'standup-post skill name intact'
+check_present 'standup/SKILL\.md'           skills/standup-post/SKILL.md 'standup-post drives the standup pipeline by reference'
+check_present 'slack_send_message'          skills/standup-post/SKILL.md 'standup-post still knows how to post'
+check_present '^model: sonnet$'             skills/standup-post/SKILL.md 'standup-post is pinned to Sonnet too'
+check_present '^disable-model-invocation: true$' skills/standup/SKILL.md      'standup stays user-invocable only'
+check_present '^disable-model-invocation: true$' skills/standup-post/SKILL.md 'standup-post stays user-invocable only'
+check_absent_in 'slack_[a-z_]+\(|`slack_[a-z_]+`' skills/standup/SKILL.md \
+  'standup itself calls no Slack tool'
+# Slack API link syntax pastes into the composer as literal angle brackets — the render emits
+# Markdown, and standup-post converts at the point it posts.
+check_absent_in '<https?://[^>]*\|' skills/standup/references/format.md \
+  'the rendering contract emits Markdown links, not Slack API syntax'
+check_present '^## Longer windows$'         skills/standup/references/format.md 'the multi-day rendering rules are still recorded'
+check_present 'search-truncated'            skills/standup/scripts/collect.sh   'a truncated GitHub search is still reported'
+check_present 'install-routine\.sh'         skills/standup-post/SKILL.md 'standup-post documents its routine installer'
+if [[ -x skills/standup-post/scripts/install-routine.sh ]]; then
+  echo "ok:   standup-post routine installer is executable"
+else
+  echo "FAIL: standup-post routine installer is missing or not executable"
+  fail=1
+fi
+# CronCreate jobs die with their session; the routine must not claim to be one.
+check_absent_in 'CronCreate\(' skills/standup-post/SKILL.md \
+  'the routine is a LaunchAgent, not a session-lived cron job'
+
 exit $fail
