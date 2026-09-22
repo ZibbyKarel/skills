@@ -1,6 +1,6 @@
 ---
 name: standup
-description: "Write up what you actually did in a given period — the pull requests you opened or merged in your org, the reviews and comments you left on other people's PRs, the Claude Code sessions you ran, and how long you sat in meetings. Takes the period as plain language ('posledních 14 dní', '1.1.2026', 'od 1.1 do 5.1'), defaults to yesterday, collects the raw material into JSON, renders it as a grouped Czech standup and prints it to the terminal. Reads its settings from a 'standup:' key in ~/.zibby/zibby-skills/config.yml."
+description: "Write up what you actually did in a given period — the pull requests you opened or merged in your org, the reviews and comments you left on other people's PRs, the Claude Code sessions you ran, and how long you sat in meetings. Takes the period as plain language ('posledních 14 dní', '1.1.2026', 'od 1.1 do 5.1'), defaults to yesterday, collects the raw material into JSON, renders it as a grouped Czech standup and prints it to the terminal. Reads its settings from a 'standup:' key in ~/Documents/.zibby/zibby-skills/config.yml."
 argument-hint: "[období, např. \"posledních 14 dní\" | \"1.1.2026\" | \"od 1.1 do 5.1\"]"
 disable-model-invocation: true
 model: sonnet
@@ -33,9 +33,10 @@ fix is that step's wording, not a bigger model reading the same ambiguity.
 
 ## 1. Read the configuration
 
-Read `~/.zibby/zibby-skills/config.yml` and take its `standup:` key. This is a **global** config,
-not the per-repo `.zibby/zibby-skills/config.yml` that `zibby:jira` reads — the standup isn't run
-from inside a project.
+Read `~/Documents/.zibby/zibby-skills/config.yml` and take its `standup:` key. This is a
+**global** config, synced via iCloud Drive across Zibby's Macs, not the per-repo
+`.zibby/zibby-skills/config.yml` that `zibby:jira` reads — the standup isn't run from inside a
+project.
 
 ```yaml
 standup:
@@ -71,7 +72,8 @@ Meetings need no configuration: step 5 reads the signed-in Outlook mailbox throu
 
 If the file or the `standup:` key is missing, ask the user whether to create one now, walking
 through `github.org` and `github.login` (the two values this skill requires). Write the answers,
-creating `~/.zibby/` and `~/.zibby/zibby-skills/` if needed. Mention that `zibby:standup-post`
+creating `~/Documents/.zibby/` and `~/Documents/.zibby/zibby-skills/` if needed. Mention that
+`zibby:standup-post`
 additionally wants `slack.channel`, and leave filling that in to that skill — provisioning another
 skill's config is not this one's job, and looking a channel up would mean a Slack call from a skill
 that promises never to make one.

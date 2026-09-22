@@ -16,7 +16,7 @@ set -uo pipefail
 
 REPO=""
 HEADING=""
-CONFIG="${HOME}/.zibby/zibby-skills/config.yml"
+CONFIG="${HOME}/Documents/.zibby/zibby-skills/config.yml"
 
 die() { printf 'cache-heading.sh: %s\n' "$1" >&2; exit 2; }
 

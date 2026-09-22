@@ -17,22 +17,25 @@ reach it. All SSH commands to Holly must go through `device_bash`
 network.
 
 If `device_bash` reports "No folders are connected", the session needs at least one folder
-connected – ideally `~/Workspace` (that's also where the persistent SSH key lives, see below).
-Ask for it to be connected via `device_request_folder_access`.
+connected – ideally `~/Documents/.zibby` specifically, not all of `~/Documents` (that's also
+where the persistent SSH key lives, see below, and it's synced via iCloud Drive across Zibby's
+Macs — no reason to grant a cloud session the rest of Documents just to reach it). Ask for it to
+be connected via `device_request_folder_access`.
 
 ## Connecting – persistent SSH key (don't use a password, don't regenerate the key every time)
 
-There's a persistent keypair for this NAS stored at `~/Workspace/.holly-ssh/id_ed25519_holly` (and
+There's a persistent keypair for this NAS stored at `~/Documents/.zibby/ssh/id_ed25519_holly` (and
 `.pub`) on Zibby's Mac – it survives across sessions because it lives in a connected folder, not
-in the ephemeral sandbox. It's authorized in `authorized_keys` on Holly. **Always connect with
-this key via `device_bash`:**
+in the ephemeral sandbox, and it's synced via iCloud Drive (`~/Documents`) so every one of Zibby's
+Macs sees the same key without needing its own entry in `authorized_keys`. It's authorized in
+`authorized_keys` on Holly. **Always connect with this key via `device_bash`:**
 
 ```bash
-ssh -p 4444 -i ~/mnt/Workspace/.holly-ssh/id_ed25519_holly -o BatchMode=yes zibby@192.168.1.4 "<command>"
+ssh -p 4444 -i ~/mnt/Documents/.zibby/ssh/id_ed25519_holly -o BatchMode=yes zibby@192.168.1.4 "<command>"
 ```
 
-(The path `~/mnt/Workspace/...` is the view from `device_bash` – on the Mac itself, inside the
-folder, it's `~/Workspace/.holly-ssh/...`.)
+(The path `~/mnt/Documents/...` is the view from `device_bash` – on the Mac itself, inside the
+folder, it's `~/Documents/.zibby/ssh/...`.)
 
 The password is never used or entered on the user's behalf.
 
@@ -41,11 +44,20 @@ The password is never used or entered on the user's behalf.
 - **User:** zibby
 - **System:** Synology DSM 7
 
-### If the key is missing (new/different Workspace folder, key deleted, etc.)
+**iCloud sync note:** iCloud Drive can reset a file's Unix permissions after it re-downloads a
+fresh copy on another Mac (or after being evicted and pulled back down locally). If `ssh` refuses
+the key citing permissions ("UNPROTECTED PRIVATE KEY FILE" / "bad permissions"), just
+`chmod 600 ~/mnt/Documents/.zibby/ssh/id_ed25519_holly` and retry — this is expected on iCloud-synced
+keys, not a sign anything is actually wrong.
 
-1. Check via `device_bash` whether `~/mnt/Workspace/.holly-ssh/id_ed25519_holly` exists.
-2. If not, generate a new one: `ssh-keygen -t ed25519 -f ~/mnt/Workspace/.holly-ssh/id_ed25519_holly -N "" -C "zibby-holly-persistent"`
-   (first `mkdir -p ~/mnt/Workspace/.holly-ssh && chmod 700 ...`).
+### If the key is missing (new Mac, iCloud not synced down yet, key deleted, etc.)
+
+1. Check via `device_bash` whether `~/mnt/Documents/.zibby/ssh/id_ed25519_holly` exists. If
+   `~/Documents/.zibby` was only just created on another Mac, give iCloud a minute to sync it down
+   before assuming it's really missing.
+2. If it's genuinely not there, generate a new one:
+   `ssh-keygen -t ed25519 -f ~/mnt/Documents/.zibby/ssh/id_ed25519_holly -N "" -C "zibby-holly-persistent"`
+   (first `mkdir -p ~/mnt/Documents/.zibby/ssh && chmod 700 ...`).
 3. Print the public key and ask the user to add it to Holly **just once** (with their password,
    themselves):
    ```bash
@@ -53,8 +65,10 @@ The password is never used or entered on the user's behalf.
    ```
 4. Once confirmed, verify the connection (`echo OK`) and continue with the task.
 
-NEVER generate a new key if the persistent one in `~/Workspace/.holly-ssh/` already exists and
-works – that's exactly the duplicate step this setup avoids.
+NEVER generate a new key if the persistent one in `~/Documents/.zibby/ssh/` already exists and
+works (even if it takes a moment to appear because iCloud is still syncing it down) – that's
+exactly the duplicate step this setup avoids, and a second key would need its own
+`authorized_keys` entry on Holly.
 
 ### Cleaning up old keys
 
@@ -71,7 +85,7 @@ explicit confirmation.
 
 The commands below are written shorthand as `ssh -p 4444 zibby@192.168.1.4 "..."` for
 readability – in practice they always run through `device_bash` and with the key, i.e.
-`ssh -p 4444 -i ~/mnt/Workspace/.holly-ssh/id_ed25519_holly -o BatchMode=yes zibby@192.168.1.4 "..."`,
+`ssh -p 4444 -i ~/mnt/Documents/.zibby/ssh/id_ed25519_holly -o BatchMode=yes zibby@192.168.1.4 "..."`,
 see the section above.
 
 ### Browsing files and folders

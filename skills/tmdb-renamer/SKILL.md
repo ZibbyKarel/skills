@@ -12,8 +12,9 @@ the standard Plex/Kodi naming format.
 
 ## TMDB API configuration
 
-The API token lives in `~/.zibby/zibby-skills/config.yml` under a `tmdb:` key — this is a
-**global** config, not the per-repo one `zibby:jira` reads:
+The API token lives in `~/Documents/.zibby/zibby-skills/config.yml` under a `tmdb:` key — this is
+a **global** config, synced via iCloud Drive across Zibby's Macs, not the per-repo one `zibby:jira`
+reads:
 
 ```yaml
 tmdb:
@@ -21,8 +22,9 @@ tmdb:
 ```
 
 If the file or the `tmdb:` key is missing, ask the user for the token and write it there
-(creating `~/.zibby/` and `~/.zibby/zibby-skills/` if needed). **Never hardcode the token in this
-file or print it back to the user** — it's a credential, treat it like one.
+(creating `~/Documents/.zibby/` and `~/Documents/.zibby/zibby-skills/` if needed). **Never
+hardcode the token in this file or print it back to the user** — it's a credential, treat it like
+one.
 
 ```
 Base URL: https://api.themoviedb.org
@@ -46,7 +48,7 @@ picture. In short:
   since that runs on Zibby's Mac, on the same network.
 - Always connect with the persistent key, never a password:
   ```bash
-  ssh -p 4444 -i ~/mnt/Workspace/.holly-ssh/id_ed25519_holly -o BatchMode=yes zibby@192.168.1.4 "<command>"
+  ssh -p 4444 -i ~/mnt/Documents/.zibby/ssh/id_ed25519_holly -o BatchMode=yes zibby@192.168.1.4 "<command>"
   ```
 - **Port 4444** is non-standard – always add `-p 4444` (for `scp`, use `-P 4444`).
 - Paths on the NAS are under `/volume1/`.

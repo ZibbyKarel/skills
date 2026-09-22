@@ -1,6 +1,6 @@
 ---
 name: standup-post
-description: "Post the daily standup into its Slack thread, unattended. Finds the standup thread in the configured channel, drives the zibby:standup pipeline for the default window (yesterday, or Friday–Sunday on a Monday), converts the rendered links to Slack's syntax and posts into the thread. This is what the weekday morning routine runs; a person who just wants to read their standup runs zibby:standup instead. Reads its settings from the 'standup:' key in ~/.zibby/zibby-skills/config.yml."
+description: "Post the daily standup into its Slack thread, unattended. Finds the standup thread in the configured channel, drives the zibby:standup pipeline for the default window (yesterday, or Friday–Sunday on a Monday), converts the rendered links to Slack's syntax and posts into the thread. This is what the weekday morning routine runs; a person who just wants to read their standup runs zibby:standup instead. Reads its settings from the 'standup:' key in ~/Documents/.zibby/zibby-skills/config.yml."
 argument-hint: ""
 disable-model-invocation: true
 model: sonnet
@@ -23,7 +23,7 @@ work is a fixed sequence of API calls. Rendering still happens on Haiku, inside 
 
 ## 1. Find the standup thread
 
-Read `~/.zibby/zibby-skills/config.yml`, take `standup.slack.channel` (required) and
+Read `~/Documents/.zibby/zibby-skills/config.yml`, take `standup.slack.channel` (required) and
 `standup.slack.threadMaxAgeHours` (optional, default 18). `slack.channel` is **this skill's**
 required value — `zibby:standup` never reads it and never offers to fill it in.
 

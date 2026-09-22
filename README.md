@@ -81,9 +81,9 @@ to you:
   into it. Blocking for `zibby:standup-post`; `zibby:standup` itself never touches Slack.
 - **Microsoft 365 MCP server**, authenticated — `zibby:standup` reads the Outlook calendar for the
   meeting line. Not blocking: without it the standup simply has no `Meetingy` group.
-- A `standup:` key in `~/.zibby/zibby-skills/config.yml` — a **global** config, unlike the
-  per-repo one below. `github.org` and `github.login` are required, and `slack.channel` on top of
-  those for `zibby:standup-post`; `repos`
+- A `standup:` key in `~/Documents/.zibby/zibby-skills/config.yml` — a **global** config, unlike
+  the per-repo one below. `github.org` and `github.login` are required, and `slack.channel` on top
+  of those for `zibby:standup-post`; `repos`
   (the per-project headings) fills itself in as new repos appear, and `sessions.excludeRepos`
   is where personal projects go so a weekend side project stays out of a work standup.
 - A `jira:` key in `.zibby/zibby-skills/config.yml` at the root of each repo you file issues from,
@@ -92,12 +92,13 @@ to you:
   key still works and is read as the `task` type. `sprint` (`current` or `none`, default `none`)
   says whether newly filed issues land in the board's current sprint — `zibby:todo-driven-development`
   assigns it per item when it starts implementing, regardless of this key.
-- A `tmdb:` key in `~/.zibby/zibby-skills/config.yml` (the same global config as `standup:`) holding
-  a `token` — the TMDB API bearer token `zibby:tmdb-renamer` needs to look up titles. Never
-  hardcoded in the skill itself; it's a credential.
-- `device_bash` (mcp__remote-devices__device_bash), with a folder connected (`~/Workspace`
-  recommended) — `zibby:holly` and `zibby:tmdb-renamer` are useless in a cloud sandbox since Holly
-  only exists on the home LAN; see `zibby:holly` for the persistent SSH key setup.
+- A `tmdb:` key in `~/Documents/.zibby/zibby-skills/config.yml` (the same global config as
+  `standup:`) holding a `token` — the TMDB API bearer token `zibby:tmdb-renamer` needs to look up
+  titles. Never hardcoded in the skill itself; it's a credential.
+- `device_bash` (mcp__remote-devices__device_bash), with `~/Documents/.zibby` connected — that's
+  where the global config and the persistent Holly SSH key live, both synced via iCloud Drive
+  across Zibby's Macs (see `zibby:holly`). `zibby:holly` and `zibby:tmdb-renamer` are useless in a
+  cloud sandbox without it, since Holly only exists on the home LAN.
 - **JDownloader**, running and signed in at my.jdownloader.org, plus browser tool access
   (Claude in Chrome or the built-in browser pane) — `zibby:webshare-downloader` drives both the
   FastShare search and the JDownloader web UI through it.
