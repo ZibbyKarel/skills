@@ -13,6 +13,8 @@ the way to a draft PR, and the standup that reports what came out of it.
 | `zibby:standup` | Write up what you did in a period — PRs, reviews, Claude sessions and meetings — and print it. Takes the period in plain language (`/standup posledních 14 dní`), defaults to yesterday. Pinned to Sonnet; renders on Haiku. |
 | `zibby:standup-post` | The unattended half: find the standup thread in Slack, drive the same pipeline for yesterday, post into the thread. What the 07:00 weekday routine runs. |
 | `zibby:holly` | Manage files on Karel's Synology NAS (DSM 7) over SSH — browse, move, dedupe, clean up. |
+| `zibby:tmdb-renamer` | Rename and organize movies/shows on the NAS into Plex/Kodi naming, looked up via the TMDB API. |
+| `zibby:webshare-downloader` | Search Webshare.cz/FastShare.cloud for a file and queue it in JDownloader. |
 
 They install together — this is one way of working, not a menu. `zibby:plan-to-backlog` fills the
 backlog, `zibby:todo-driven-development` empties it, both lean on `zibby:todo` and `zibby:jira`,
@@ -24,9 +26,11 @@ and, in `standup-post`'s case, post publicly under your name. An agent never sta
 The morning routine is a macOS LaunchAgent running `claude -p "/standup-post"`, installed with
 `skills/standup-post/scripts/install-routine.sh`.
 
-`zibby:holly` is unrelated to the TODO/Jira workflow above — it's along for the ride because this
-is the marketplace that installs together. It SSHes into a home NAS, so it only does anything
-useful on Karel's own network.
+`zibby:holly`, `zibby:tmdb-renamer` and `zibby:webshare-downloader` are unrelated to the TODO/Jira
+workflow above — they're along for the ride because this is the marketplace that installs
+together. `zibby:holly` and `zibby:tmdb-renamer` SSH into a home NAS, so they only do anything
+useful on Karel's own network; `zibby:webshare-downloader` needs the JDownloader app running and
+signed in.
 
 ## Install
 
@@ -88,6 +92,15 @@ to you:
   key still works and is read as the `task` type. `sprint` (`current` or `none`, default `none`)
   says whether newly filed issues land in the board's current sprint — `zibby:todo-driven-development`
   assigns it per item when it starts implementing, regardless of this key.
+- A `tmdb:` key in `~/.zibby/zibby-skills/config.yml` (the same global config as `standup:`) holding
+  a `token` — the TMDB API bearer token `zibby:tmdb-renamer` needs to look up titles. Never
+  hardcoded in the skill itself; it's a credential.
+- `device_bash` (mcp__remote-devices__device_bash), with a folder connected (`~/Workspace`
+  recommended) — `zibby:holly` and `zibby:tmdb-renamer` are useless in a cloud sandbox since Holly
+  only exists on the home LAN; see `zibby:holly` for the persistent SSH key setup.
+- **JDownloader**, running and signed in at my.jdownloader.org, plus browser tool access
+  (Claude in Chrome or the built-in browser pane) — `zibby:webshare-downloader` drives both the
+  FastShare search and the JDownloader web UI through it.
 
 ## Uninstall
 
@@ -112,6 +125,8 @@ skills/todo-driven-development/
 skills/standup/                   SKILL.md + references/format.md + scripts/{collect,cache-heading}.sh
 skills/standup-post/              SKILL.md + scripts/install-routine.sh (the weekday LaunchAgent)
 skills/holly/                     SKILL.md (SSH file management on Karel's Synology NAS)
+skills/tmdb-renamer/              SKILL.md (renames movies/shows on the NAS via the TMDB API)
+skills/webshare-downloader/       SKILL.md (Webshare/FastShare search → JDownloader)
 install.sh
 tests/                            reference and install smoke checks
 ```
