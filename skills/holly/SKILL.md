@@ -154,13 +154,19 @@ ssh -p 4444 zibby@192.168.1.4 "mkdir -p /volume1/path/new-folder"
 This is a list of the important folders, not the complete structure. Folders may contain further
 subfolders and files.
 
-- /volume1/home - my home folder
-- /volume1/home/Downloads - folder where I download all sorts of things (movies, TV shows, porn)
-- /volume1/onrop - porn
+- /volume1/homes - contains one home folder per NAS user (zibby, anicka, honza, terka, ...)
+- /volume1/homes/zibby - my home folder. Also has tmdb_renamer.py and tv_move.sh, the scripts
+  behind the tmdb-renamer skill
+- /volume1/homes/zibby/Downloads - folder where I download all sorts of things (movies, TV shows,
+  porn), unsorted, waiting to be moved into onrop/movie-library
+- /volume1/onrop - porn, sorted into one subfolder per performer/studio
 - /volume1/media-backup - contains RAW photos and video
-- /volume1/movie-library - contains movies, TV shows, concerts, theater recordings and more.
-  Whenever you move files into this folder, always use the tmdb-renamer skill and rename the file
-  before moving it
+- /volume1/movie-library - contains movies, TV shows, concerts, theater recordings and more, sorted
+  into subfolders: Movies, "Movies - Kids", "TV Shows", "TV Shows - Kids", Concerts, Theater,
+  Standups. Whenever you move files into this folder, always use the tmdb-renamer skill and rename
+  the file before moving it
+- /volume1/@download - Download Station's own working directory (torrents, transmissiond, pyload),
+  separate from homes/zibby/Downloads
 
 ---
 
