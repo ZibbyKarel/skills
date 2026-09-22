@@ -12,6 +12,7 @@ the way to a draft PR, and the standup that reports what came out of it.
 | `zibby:todo-driven-development` | Drive a TODO item to a draft PR: issue → plan → implementation → PR. |
 | `zibby:standup` | Write up what you did in a period — PRs, reviews, Claude sessions and meetings — and print it. Takes the period in plain language (`/standup posledních 14 dní`), defaults to yesterday. Pinned to Sonnet; renders on Haiku. |
 | `zibby:standup-post` | The unattended half: find the standup thread in Slack, drive the same pipeline for yesterday, post into the thread. What the 07:00 weekday routine runs. |
+| `zibby:holly` | Manage files on Karel's Synology NAS (DSM 7) over SSH — browse, move, dedupe, clean up. |
 
 They install together — this is one way of working, not a menu. `zibby:plan-to-backlog` fills the
 backlog, `zibby:todo-driven-development` empties it, both lean on `zibby:todo` and `zibby:jira`,
@@ -22,6 +23,10 @@ Both standup skills are **user-invocable only** (`disable-model-invocation: true
 and, in `standup-post`'s case, post publicly under your name. An agent never starts one on its own.
 The morning routine is a macOS LaunchAgent running `claude -p "/standup-post"`, installed with
 `skills/standup-post/scripts/install-routine.sh`.
+
+`zibby:holly` is unrelated to the TODO/Jira workflow above — it's along for the ride because this
+is the marketplace that installs together. It SSHes into a home NAS, so it only does anything
+useful on Karel's own network.
 
 ## Install
 
@@ -106,6 +111,7 @@ skills/plan-to-backlog/           SKILL.md + references/chunking.md
 skills/todo-driven-development/
 skills/standup/                   SKILL.md + references/format.md + scripts/{collect,cache-heading}.sh
 skills/standup-post/              SKILL.md + scripts/install-routine.sh (the weekday LaunchAgent)
+skills/holly/                     SKILL.md (SSH file management on Karel's Synology NAS)
 install.sh
 tests/                            reference and install smoke checks
 ```
