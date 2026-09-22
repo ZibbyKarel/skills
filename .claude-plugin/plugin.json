@@ -1,6 +1,6 @@
 {
   "name": "zibby",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "How Karel works: TODO backlog, Jira issue creation, plan-to-backlog decomposition, and the TODO-to-PR pipeline.",
   "author": {
     "name": "Karel Zíbar",
