@@ -201,4 +201,30 @@ todo add "Parent item" >/dev/null
 todo add "Only child" --under 1 >/dev/null
 expect "next reports the parent, not the open child" "1. Parent item" "$(todo next)"
 
+# --- `prune` drops done items (a done parent takes its children), then renumbers ------------
+reset_repo
+todo add "Done alone" >/dev/null
+todo add "Open parent" >/dev/null
+todo add "Done child" --under 2 >/dev/null
+todo add "Open child" --under 2 >/dev/null
+todo add "Done parent" --section "Epic ([EEE-5](https://example.test/browse/EEE-5))" >/dev/null
+todo add "Its child" --under 3 >/dev/null
+todo add "Still open" --section "Epic ([EEE-5](https://example.test/browse/EEE-5))" >/dev/null
+todo done 1 >/dev/null
+todo done 2.a >/dev/null
+todo done 3 >/dev/null
+todo prune >/dev/null
+expect_file "prune removes done lines and renumbers what is left" "$(cat <<'EOF'
+# TODO
+
+1. [ ] Open parent
+   a. [ ] Open child
+
+## Epic ([EEE-5](https://example.test/browse/EEE-5))
+
+2. [ ] Still open
+EOF
+)"
+expect "prune with nothing done is a no-op" "no done items to prune" "$(todo prune)"
+
 exit $fail

@@ -307,6 +307,25 @@ def cmd_undone(path: Path, id_str: str) -> None:
     print(f"undone #{top_n}.{sub_letter}: {sub.text}")
 
 
+def cmd_prune(path: Path) -> None:
+    """Deletes every checked item — a checked parent takes all its sub-items with it — then renumbers."""
+    lines = read_lines(path)
+    drop: set[int] = set()
+    for top in find_top_items(lines):
+        if top.checked:
+            drop.add(top.line_idx)
+            drop.update(s.line_idx for s in top.subitems)
+        else:
+            drop.update(s.line_idx for s in top.subitems if s.checked)
+    if not drop:
+        print("no done items to prune")
+        return
+    lines = [line for i, line in enumerate(lines) if i not in drop]
+    renumber_all(lines)
+    path.write_text("".join(lines), encoding="utf-8")
+    print(f"pruned {len(drop)} line(s); {len(find_top_items(lines))} item(s) left")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -323,6 +342,7 @@ def main() -> None:
 
     sub.add_parser("list")
     sub.add_parser("next")
+    sub.add_parser("prune")
 
     p_show = sub.add_parser("show")
     p_show.add_argument("n", help="item id: a number (4) or a sub-item (4.a)")
@@ -349,6 +369,8 @@ def main() -> None:
         cmd_done(path, args.n, args.ref)
     elif args.command == "undone":
         cmd_undone(path, args.n)
+    elif args.command == "prune":
+        cmd_prune(path)
 
 
 if __name__ == "__main__":

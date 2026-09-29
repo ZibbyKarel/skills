@@ -2,7 +2,10 @@
 # Writes one repo -> heading pair into standup.repos in the global config, without
 # disturbing anything else in the file.
 #
-#   cache-heading.sh --repo partner-cli --heading "Shoptet addon CLI" [--config PATH]
+#   cache-heading.sh --repo partner-cli --heading "Partner CLI" [--config PATH]
+#
+# The config defaults to $ZIBBY_SKILLS_CONFIG, else $XDG_CONFIG_HOME/zibby-skills/config.yml,
+# else ~/.config/zibby-skills/config.yml.
 #
 # Editing YAML by hand is the drift surface this exists to remove: a heading cached by
 # reflowing the file loses comments, reorders keys, or lands a comment on the wrong line
@@ -16,7 +19,7 @@ set -uo pipefail
 
 REPO=""
 HEADING=""
-CONFIG="${HOME}/Documents/.zibby/zibby-skills/config.yml"
+CONFIG="${ZIBBY_SKILLS_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/zibby-skills/config.yml}"
 
 die() { printf 'cache-heading.sh: %s\n' "$1" >&2; exit 2; }
 
@@ -25,7 +28,7 @@ while [[ $# -gt 0 ]]; do
     --repo)    REPO="${2:-}";    shift 2 ;;
     --heading) HEADING="${2:-}"; shift 2 ;;
     --config)  CONFIG="${2:-}";  shift 2 ;;
-    -h|--help) sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *)         die "unknown argument: $1" ;;
   esac
 done
@@ -41,7 +44,10 @@ import os, re, sys
 
 repo    = os.environ["REPO"]
 heading = os.environ["HEADING"]
-path    = os.environ["CONFIG"]
+# Follow symlinks before writing: the atomic rename below would otherwise replace a
+# symlinked config with a regular file, quietly detaching it from whatever it pointed at
+# (an iCloud- or dotfiles-synced file, typically).
+path    = os.path.realpath(os.environ["CONFIG"])
 
 with open(path, encoding="utf-8") as fh:
     lines = fh.readlines()

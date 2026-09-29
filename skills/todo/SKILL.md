@@ -1,7 +1,7 @@
 ---
 name: todo
-description: "Manage a project's TODO.md checklist — add an item, list items, mark one done or undone, or find the next pending one. Use this whenever the user wants to track personal backlog items for the current project, whether they type an explicit /todo command or just say something like 'add this to my todo list', 'what's on my todo', 'what should I work on next', or 'mark item 3 as done' — they don't need to say 'TODO.md' or name the file explicitly. This is a personal, cross-project tool — it always operates on the TODO.md at the root of whatever git repo the user is currently in, creating the file the first time it's needed."
-argument-hint: "add \"<text>\" [--ref <url>] [--section \"<heading>\"] [--under <n>] | list | next | show <id> | done <id> [ref] | undone <id>"
+description: "Manage a project's TODO.md checklist — add an item, list items, mark one done or undone, find the next pending one, or prune finished items and renumber the rest. Use this whenever the user wants to track personal backlog items for the current project, whether they type an explicit /todo command or just say something like 'add this to my todo list', 'what's on my todo', 'what should I work on next', 'mark item 3 as done', or 'clean the done items out of my todo' — they don't need to say 'TODO.md' or name the file explicitly. This is a personal, cross-project tool — it always operates on the TODO.md at the root of whatever git repo the user is currently in, creating the file the first time it's needed."
+argument-hint: "add \"<text>\" [--ref <url>] [--section \"<heading>\"] [--under <n>] | list | next | show <id> | done <id> [ref] | undone <id> | prune"
 ---
 
 # todo
@@ -37,6 +37,7 @@ python3 ${CLAUDE_PLUGIN_ROOT}/skills/todo/scripts/todo.py <command> [args]
 | `done <n>.<letter> [ref]` | Checks off just that sub-item. Once every sibling under `n` is checked, the parent auto-checks too (no `ref` attached to that auto-check — the ref belongs to whichever sub-item command actually closed things out). |
 | `undone <n>` | Reverts item `n` **and every one of its sub-items** to unchecked, e.g. to correct a mistaken `done`. |
 | `undone <n>.<letter>` | Reverts just that sub-item to unchecked. If the parent had been checked (including auto-checked), it's reopened too. |
+| `prune` | Deletes every checked item — a checked parent together with all its sub-items, plus checked sub-items of a still-open parent — then renumbers what's left (`1, 2, 3...`, letters `a, b...`). Headings and prose stay, even a section left empty. Only run it when the user asks to remove finished items — it drops the refs recorded by `done` along with them. |
 
 ## Using it from natural language
 
@@ -53,12 +54,13 @@ file is the source of truth for what's pending.
 
 - The number is written into the file itself (`N. [ ] <text>` / `N. [x] <text>`), not just shown
   by `list`. It's still positional, not a stable ID: `add` renumbers every item in the file after
-  it inserts one, so an item's number can shift when something is added above it. Always re-run
+  it inserts one (and `prune` after it removes some), so an item's number can shift when something is added above it. Always re-run
   `list` (or trust the number a command you just ran reported) rather than reusing a number from
   earlier in a long conversation.
-- There is no `delete`. Removing an item means editing `TODO.md` by hand (and re-running any
-  `add` afterwards to fix up numbering); `undone` is the only built-in way to walk a change back,
-  and it flips the checkbox without stripping a `ref`.
+- There is no `delete` for a single pending item. Removing one means editing `TODO.md` by hand,
+  then running `prune` (or any `add`) to fix up numbering; `prune` itself only removes checked
+  items. `undone` is the only built-in way to walk a `done` back, and it flips the checkbox
+  without stripping a `ref`.
 - This skill only touches `TODO.md`'s checklist lines (`N. [ ]` / `N. [x]`; legacy `- [ ]`/`* [ ]`
   bullets are still read as items for files written by an older version of this script, but any
   line this script writes uses the numbered form). Anything else in the file — headings, prose,

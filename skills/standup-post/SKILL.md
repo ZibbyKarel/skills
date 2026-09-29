@@ -1,6 +1,6 @@
 ---
 name: standup-post
-description: "Post the daily standup into its Slack thread, unattended. Finds the standup thread in the configured channel, drives the zibby:standup pipeline for the default window (yesterday, or Friday–Sunday on a Monday), converts the rendered links to Slack's syntax and posts into the thread. This is what the weekday morning routine runs; a person who just wants to read their standup runs zibby:standup instead. Reads its settings from the 'standup:' key in ~/Documents/.zibby/zibby-skills/config.yml."
+description: "Post the daily standup into its Slack thread, unattended. Finds the standup thread in the configured channel, drives the zibby:standup pipeline for the default window (yesterday, or Friday–Sunday on a Monday), converts the rendered links to Slack's syntax and posts into the thread. This is what the weekday morning routine runs; a person who just wants to read their standup runs zibby:standup instead. Reads its settings from the 'standup-post:' key in ~/.config/zibby-skills/config.yml."
 argument-hint: ""
 disable-model-invocation: true
 model: sonnet
@@ -23,12 +23,35 @@ work is a fixed sequence of API calls. Rendering still happens on Haiku, inside 
 
 ## 1. Find the standup thread
 
-Read `~/Documents/.zibby/zibby-skills/config.yml`, take `standup.slack.channel` (required) and
-`standup.slack.threadMaxAgeHours` (optional, default 18). `slack.channel` is **this skill's**
-required value — `zibby:standup` never reads it and never offers to fill it in.
+Read the global config — `$ZIBBY_SKILLS_CONFIG`, else
+`${XDG_CONFIG_HOME:-~/.config}/zibby-skills/config.yml`, the same file `zibby:standup` reads — and
+take its **`standup-post:`** key, a top-level key of its own, sibling to `standup:` and never
+nested inside it:
+
+```yaml
+standup-post:
+  channel: C0A9WNRD8CV # where the standup thread lives
+  threadMarker: "standup thread" # the text that identifies the day's thread
+  threadMaxAgeHours: 18
+```
+
+- `channel` (required) — the Slack channel id holding the standup thread.
+- `threadMarker` (required) — the literal text that appears in the message opening the day's
+  thread, matched case-insensitively as a substring. Whatever your channel's bot or teammate
+  writes: `standup thread`, `vlákno pro standup`, `daily standup`. There is no default, because a
+  guessed marker either matches nothing or matches the wrong message, and the second one posts your
+  standup under somebody else's conversation.
+- `threadMaxAgeHours` (optional, default 18) — how old the thread may be and still be posted into.
+
+These two values are **this skill's alone**. `zibby:standup` never reads them, never writes them,
+and never offers to fill them in when it creates its own config; likewise nothing here touches
+`standup:`, which is read only by the pipeline this skill borrows in step 2. One key describes
+where the evidence comes from, the other where the message goes, and the boundary is what makes it
+obvious which of the two skills could ever post something publicly.
 
 Missing, it ends the run before anything else happens:
-`NO_CONFIG: standup.slack.channel (find the channel id with slack_search_channels and add it)`.
+`NO_CONFIG: standup-post.channel (find the channel id with slack_search_channels and add it)`,
+or `NO_CONFIG: standup-post.threadMarker` when the marker is what's missing.
 Do not ask, and do not look it up and proceed: a channel id guessed at 07:00 posts the standup
 somewhere nobody expected it.
 
@@ -36,9 +59,9 @@ Find the thread **before collecting anything**: if there is nowhere to post, tha
 run ends, and it is better to know up front.
 
 Read the channel with `slack_read_channel` (limit 30) and take the **most recent** message whose
-text contains `vlákno pro standup`. Match on the text, **not on the author** — it is usually the
-`Templates DevRel dialy standup` bot early in the morning, and sometimes a teammate posts it by hand
-when the bot is late. Its `ts` is the `thread_ts` for step 4.
+text contains `threadMarker`. Match on the text, **not on the author** — the thread is usually
+opened by a bot early in the morning, and sometimes by a teammate by hand when the bot is late.
+Its `ts` is the `thread_ts` for step 4.
 
 The thread is the **posting target only**. It does not define the window: the gap between two
 consecutive threads is whatever the bot's schedule happens to be, and a thread posted the evening
@@ -75,7 +98,7 @@ The render produces Markdown links, because its usual destination is a terminal 
 of. The Slack API wants its own syntax, and posting Markdown through it yields literal brackets.
 
 Rewrite every `[label](url)` as `<url|label>`. Nothing else about the message changes — not a word
-of the Czech, not the grouping, not the order. If you find yourself editing anything but the link
+of the text, not the grouping, not the order. If you find yourself editing anything but the link
 syntax, stop: the fix belongs in `references/format.md`, not here.
 
 **Before the first-ever run**, confirm by hand that these links survive `slack_send_message` and
@@ -86,7 +109,7 @@ catch it. Send one throwaway bullet to yourself in a DM and look at it.
 ## 4. Post it
 
 ```
-slack_send_message(channel_id: <slack.channel>, thread_ts: <ts from step 1>, message: <converted>)
+slack_send_message(channel_id: <standup-post.channel>, thread_ts: <ts from step 1>, message: <converted>)
 ```
 
 Post once. If the call fails, `SLACK_UNAVAILABLE: <the error>` — do not retry with a reworded
@@ -120,7 +143,9 @@ The routine is a macOS LaunchAgent, installed once:
 ```
 
 It writes `~/Library/LaunchAgents/com.zibby.standup-post.plist` and loads it: `claude -p
-"/standup-post"` at 07:00, Monday through Friday, logging to `~/.zibby/standup/routine.log`.
+"/standup-post"` at 07:00, Monday through Friday, logging to `standup/routine.log` under
+`${ZIBBY_SKILLS_DATA:-${XDG_STATE_HOME:-~/.local/state}/zibby-skills}` — the same directory the
+pipeline writes its JSON and Markdown into.
 `--dry-run` prints the plist without touching anything, `--uninstall` removes it, and re-running it
 replaces the job rather than doubling it.
 
@@ -137,9 +162,8 @@ morning's `routine.log` answers both.
 
 07:00 on weekdays sits before anyone answers the thread, and it cannot usefully run the evening
 before, since the window it reports on hasn't closed yet. Whether it sits *after* the thread appears
-depends on the bot: in the channel this skill used to post to it fired at 06:00 daily, but nothing
-guarantees the same time here. Confirm the bot's time in the target channel and move the routine if
-it is later — a run that fires before the thread exists ends with `NO_THREAD` and posts nothing.
+depends on the bot — one channel's fired at 06:00 daily, but nothing guarantees the same time in
+yours. Confirm the bot's time in the target channel and move the routine if it is later — a run that fires before the thread exists ends with `NO_THREAD` and posts nothing.
 
 The scheduled run needs no model argument: the frontmatter `model: sonnet` above governs the skill
 turn however it was invoked, so the morning task cannot silently land on whatever model the session

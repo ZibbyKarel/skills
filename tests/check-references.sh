@@ -142,4 +142,66 @@ fi
 check_absent_in 'CronCreate\(' skills/standup-post/SKILL.md \
   'the routine is a LaunchAgent, not a session-lived cron job'
 
+# The posting logic lives in standup-post alone, config included. zibby:standup may say that
+# something else posts, but must hold no posting call, no Slack link syntax and no Slack config
+# key — the moment it does, "this skill only prints" has quietly stopped being true.
+check_absent_in 'slack_send_message|<url\|label>|slack:|standup\.slack' \
+  skills/standup/SKILL.md \
+  'standup holds no posting call, link syntax or Slack config'
+check_absent_in 'slack_send_message|<url\|label>' \
+  skills/standup/references/format.md \
+  'the rendering contract emits one link syntax and knows nothing about Slack'
+check_present '^standup-post:$'  skills/standup-post/SKILL.md \
+  'standup-post documents its own top-level config key'
+check_present '<url\|label>'     skills/standup-post/SKILL.md \
+  'standup-post owns the Slack link conversion'
+
+# Publishability: nothing under skills/standup* may assume one person's machine, one company or
+# one output language. Each of these was a real blocker before the skill was opened up.
+check_absent_in 'Documents/\.zibby|HOME\}?/\.zibby' skills/standup/SKILL.md \
+  'standup config path is XDG, not a personal directory'
+check_absent_in 'Documents/\.zibby|HOME\}?/\.zibby' skills/standup-post/SKILL.md \
+  'standup-post config path is XDG, not a personal directory'
+check_absent_in 'Documents/\.zibby|HOME\}?/\.zibby' skills/standup/scripts/cache-heading.sh \
+  'the heading cache defaults to an XDG config path'
+check_absent_in 'Documents/\.zibby|HOME\}?/\.zibby' skills/standup-post/scripts/install-routine.sh \
+  'the routine logs to an XDG state path'
+check_present 'ZIBBY_SKILLS_CONFIG' skills/standup/scripts/cache-heading.sh \
+  'the heading cache honours the config override env var'
+# os.replace() onto a symlinked config would detach it from whatever it points at.
+check_present 'realpath' skills/standup/scripts/cache-heading.sh \
+  'the heading cache resolves a symlinked config before rewriting it'
+
+# The output language is configuration, not a hardcoded assumption of the contract.
+check_present 'output' skills/standup/SKILL.md 'standup documents its output.language key'
+check_present 'locales/' skills/standup/SKILL.md 'standup hands a locale file to the renderer'
+check_absent_in 'Czech' skills/standup/references/format.md \
+  'the rendering contract is language-neutral'
+check_absent_in 'Meetingy' skills/standup/references/format.md \
+  'the meetings heading comes from the locale, not the contract'
+for loc in skills/standup/references/locales/*.md; do
+  [[ -f "$loc" ]] || continue
+  check_present '^# Locale:' "$loc" "locale $(basename "$loc" .md) declares itself"
+done
+if [[ -f skills/standup/references/locales/en.md && -f skills/standup/references/locales/cs.md ]]; then
+  echo "ok:   en and cs locales both present"
+else
+  echo "FAIL: en and cs locales both present"
+  fail=1
+fi
+
+# A public repo without a licence is not usable by anyone who finds it.
+if [[ -f LICENSE ]]; then
+  echo "ok:   LICENSE present"
+else
+  echo "FAIL: LICENSE present"
+  fail=1
+fi
+
+# The thread marker is per-team text; hardcoding it posts into the wrong message elsewhere.
+check_present 'threadMarker' skills/standup-post/SKILL.md \
+  'the standup thread marker is configuration'
+check_present 'text contains .threadMarker' skills/standup-post/SKILL.md \
+  'the thread is found by the configured marker, not a hardcoded phrase'
+
 exit $fail

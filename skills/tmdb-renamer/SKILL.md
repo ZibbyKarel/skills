@@ -12,7 +12,8 @@ the standard Plex/Kodi naming format.
 
 ## TMDB API configuration
 
-The API token lives in `~/Documents/.zibby/zibby-skills/config.yml` under a `tmdb:` key — this is
+The API token lives in the global config (`$ZIBBY_SKILLS_CONFIG`, else
+`${XDG_CONFIG_HOME:-~/.config}/zibby-skills/config.yml`) under a `tmdb:` key — this is
 a **global** config, synced via iCloud Drive across Zibby's Macs, not the per-repo one `zibby:jira`
 reads:
 
@@ -22,7 +23,7 @@ tmdb:
 ```
 
 If the file or the `tmdb:` key is missing, ask the user for the token and write it there
-(creating `~/Documents/.zibby/` and `~/Documents/.zibby/zibby-skills/` if needed). **Never
+(creating the config's parent directory if needed). **Never
 hardcode the token in this file or print it back to the user** — it's a credential, treat it like
 one.
 

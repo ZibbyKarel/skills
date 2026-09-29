@@ -7,7 +7,7 @@
 # `.meetings` is emitted empty: the calendar lives behind an MCP tool with no CLI, so the
 # skill fills that key in after this script runs.
 #
-#   collect.sh --org shoptet --login ZibbyKarel \
+#   collect.sh --org acme --login octocat \
 #              --from 2026-09-08T18:00:00Z --to 2026-09-09T05:15:00Z \
 #              [--out path.json] [--sessions-dir DIR]
 #
@@ -82,7 +82,7 @@ gh_fatal() {
 
 jira_key_from() { # jira_key_from <branch> <title> [body]
   # Not anchored to the start: Jira's own GitHub integration recognizes an issue key
-  # anywhere in the branch name, title, or body (e.g. "karel/CZ3TDR1-630-fix-thing"), so a
+  # anywhere in the branch name, title, or body (e.g. "jane/PROJ-630-fix-thing"), so a
   # PR with an issue genuinely attached in Jira must still resolve here — otherwise
   # the render falls back to the PR number, which is the bug this fixes. Branch first
   # (deliberately named, most reliable), then title, then the description last — a
@@ -276,7 +276,7 @@ if [[ -d "$SESSIONS_DIR" ]]; then
     dir="$(basename "$(dirname "$file")")"
     # Throwaway working directories: scratchpads and temp checkouts, never real work.
     case "$dir" in
-      -private-tmp-claude-501-*|-private-var-folders-*|-tmp-*) continue ;;
+      -private-tmp-claude-*|-private-var-folders-*|-tmp-*) continue ;;
     esac
     jq -s -c \
       --arg from "$FROM" --arg to "$TO" --arg file "$file" \
@@ -375,7 +375,7 @@ jq -n \
       | sort_by(.at)),
     repos: ($prs | map(.repo) | unique),
     # Meetings come from the calendar, which has no CLI — the skill fills this in after
-    # collection (SKILL.md step 6). The key is emitted empty so the renderer can rely on it
+    # collection (SKILL.md step 4). The key is emitted empty so the renderer can rely on it
     # existing whether or not the calendar was reachable.
     meetings: [],
     notes: ($notes | split("\n") | map(select(length > 0)))

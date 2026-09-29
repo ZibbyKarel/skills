@@ -14,7 +14,7 @@ set -uo pipefail
 
 LABEL="com.zibby.standup-post"
 PLIST="${HOME}/Library/LaunchAgents/${LABEL}.plist"
-LOG_DIR="${HOME}/.zibby/standup"
+LOG_DIR="${ZIBBY_SKILLS_DATA:-${XDG_STATE_HOME:-$HOME/.local/state}/zibby-skills}/standup"
 HOUR=7
 MINUTE=0
 DRY_RUN=0

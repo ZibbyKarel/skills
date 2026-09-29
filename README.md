@@ -80,24 +80,32 @@ to you:
 - **Slack MCP server**, authenticated — `zibby:standup-post` reads the standup thread and posts
   into it. Blocking for `zibby:standup-post`; `zibby:standup` itself never touches Slack.
 - **Microsoft 365 MCP server**, authenticated — `zibby:standup` reads the Outlook calendar for the
-  meeting line. Not blocking: without it the standup simply has no `Meetingy` group.
-- A `standup:` key in `~/Documents/.zibby/zibby-skills/config.yml` — a **global** config, unlike
-  the per-repo one below. `github.org` and `github.login` are required, and `slack.channel` on top
-  of those for `zibby:standup-post`; `repos`
-  (the per-project headings) fills itself in as new repos appear, and `sessions.excludeRepos`
-  is where personal projects go so a weekend side project stays out of a work standup.
+  meeting line. Not blocking: without it the standup simply has no meetings group.
+- A `standup:` key in the **global** config — `$ZIBBY_SKILLS_CONFIG`, else
+  `${XDG_CONFIG_HOME:-~/.config}/zibby-skills/config.yml` — unlike the per-repo one below.
+  `github.org` and `github.login` are required; `output.language` picks the language the standup is
+  written in (a locale file under `skills/standup/references/locales/`, `en` and `cs` ship with it,
+  default `en`); `timezone` defines what a day is; `repos` (the per-project headings) fills itself
+  in as new repos appear, and `sessions.excludeRepos` is where personal projects go so a weekend
+  side project stays out of a work standup.
+- A `standup-post:` key in the same file, a **sibling** of `standup:` rather than part of it —
+  `channel` (required, the Slack channel holding the standup thread), `threadMarker` (required, the
+  text identifying the day's thread message) and `threadMaxAgeHours`.
+  Only `zibby:standup-post` reads it. The split is deliberate: `standup:` says where the evidence
+  comes from, `standup-post:` says where the message goes, so it is visible from the config alone
+  which of the two skills could ever post publicly.
 - A `jira:` key in `.zibby/zibby-skills/config.yml` at the root of each repo you file issues from,
   naming the target board, site, issue types, sprint policy and labels. `issueTypes` names the
   `task`, `bug` and `parent` (epic-level) type names for that instance; the older single `issueType`
   key still works and is read as the `task` type. `sprint` (`current` or `none`, default `none`)
   says whether newly filed issues land in the board's current sprint — `zibby:todo-driven-development`
   assigns it per item when it starts implementing, regardless of this key.
-- A `tmdb:` key in `~/Documents/.zibby/zibby-skills/config.yml` (the same global config as
-  `standup:`) holding a `token` — the TMDB API bearer token `zibby:tmdb-renamer` needs to look up
+- A `tmdb:` key in the same global config as `standup:`, holding a `token` — the TMDB API bearer token `zibby:tmdb-renamer` needs to look up
   titles. Never hardcoded in the skill itself; it's a credential.
 - `device_bash` (mcp__remote-devices__device_bash), with `~/Documents/.zibby` connected — that's
-  where the global config and the persistent Holly SSH key live, both synced via iCloud Drive
-  across Zibby's Macs (see `zibby:holly`). `zibby:holly` and `zibby:tmdb-renamer` are useless in a
+  where the persistent Holly SSH key lives, synced via iCloud Drive across Zibby's Macs (see
+  `zibby:holly`). To keep the global config on that synced drive too, point `ZIBBY_SKILLS_CONFIG`
+  at it or symlink the default path to it; the skills resolve symlinks before writing. `zibby:holly` and `zibby:tmdb-renamer` are useless in a
   cloud sandbox without it, since Holly only exists on the home LAN.
 - **JDownloader**, running and signed in at my.jdownloader.org, plus browser tool access
   (Claude in Chrome or the built-in browser pane) — `zibby:webshare-downloader` drives both the
@@ -123,7 +131,7 @@ skills/todo/                      SKILL.md + scripts/todo.py
 skills/jira/                      SKILL.md + references/sprint.md
 skills/plan-to-backlog/           SKILL.md + references/chunking.md
 skills/todo-driven-development/
-skills/standup/                   SKILL.md + references/format.md + scripts/{collect,cache-heading}.sh
+skills/standup/                   SKILL.md + references/{format.md,locales/} + scripts/{collect,cache-heading}.sh
 skills/standup-post/              SKILL.md + scripts/install-routine.sh (the weekday LaunchAgent)
 skills/holly/                     SKILL.md (SSH file management on Karel's Synology NAS)
 skills/tmdb-renamer/              SKILL.md (renames movies/shows on the NAS via the TMDB API)
@@ -142,3 +150,7 @@ claude plugin validate .      # manifests
 ./tests/standup-cache-heading.sh  # cache-heading.sh behaviour, against throwaway configs
 ./tests/install-smoke.sh      # install into a throwaway project, then clean up
 ```
+
+## License
+
+MIT — see [LICENSE](LICENSE).

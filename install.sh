@@ -107,10 +107,26 @@ else
   warn "could not query MCP servers; skipping the Atlassian, Slack and Microsoft 365 checks"
 fi
 
-if [ -f "$HOME/.zibby/zibby-skills/config.yml" ] && grep -q '^standup:' "$HOME/.zibby/zibby-skills/config.yml" 2>/dev/null; then
-  ok "standup: config present in ~/.zibby/zibby-skills/config.yml"
+# The two standup skills read two sibling keys of the same global config: zibby:standup reads
+# `standup:` (where the evidence comes from), zibby:standup-post reads `standup-post:` (where the
+# message goes). Check them separately, since either can be present without the other.
+GLOBAL_CONFIG="${ZIBBY_SKILLS_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/zibby-skills/config.yml}"
+CONFIG_LABEL="${GLOBAL_CONFIG/#$HOME/~}"
+
+if [ -f "$GLOBAL_CONFIG" ] && grep -q '^standup:' "$GLOBAL_CONFIG" 2>/dev/null; then
+  ok "standup: config present in $CONFIG_LABEL"
 else
-  warn "no 'standup:' key in ~/.zibby/zibby-skills/config.yml — zibby:standup will offer to create one on first run (zibby:standup-post additionally needs slack.channel in it)"
+  warn "no 'standup:' key in $CONFIG_LABEL — zibby:standup will offer to create one on first run"
+fi
+
+if [ -f "$GLOBAL_CONFIG" ] && grep -q '^standup-post:' "$GLOBAL_CONFIG" 2>/dev/null; then
+  if grep -q '^  threadMarker:' "$GLOBAL_CONFIG" 2>/dev/null; then
+    ok "standup-post: config present in $CONFIG_LABEL"
+  else
+    warn "'standup-post:' in $CONFIG_LABEL has no 'threadMarker' — zibby:standup-post cannot identify the day's thread and will not post"
+  fi
+else
+  warn "no 'standup-post:' key in $CONFIG_LABEL — zibby:standup-post needs a 'channel' and a 'threadMarker' in it and will not post without them (zibby:standup is unaffected)"
 fi
 
 warn "Each repo you use zibby:jira in needs a '## Jira' section in its README.md — the installer cannot write that for you"
