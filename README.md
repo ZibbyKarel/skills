@@ -12,6 +12,7 @@ the way to a draft PR, and the standup that reports what came out of it.
 | `zibby:todo-driven-development` | Drive a TODO item to a draft PR: issue → plan → implementation → PR. |
 | `zibby:standup` | Write up what you did in a period — PRs, reviews, Claude sessions and meetings — and print it. Takes the period in plain language (`/standup posledních 14 dní`), defaults to yesterday. Pinned to Sonnet; renders on Haiku. |
 | `zibby:standup-post` | The unattended half: find the standup thread in Slack, drive the same pipeline for yesterday, post into the thread. What the 07:00 weekday routine runs. |
+| `zibby:slack-daily-digest` | Summarize one day of your Slack — who, where, when, what was agreed, next steps and deadlines, with links. Read-only; takes an optional date. ZibbyOS runs it every evening and files the result in the vault. |
 | `zibby:holly` | Manage files on Karel's Synology NAS (DSM 7) over SSH — browse, move, dedupe, clean up. |
 | `zibby:tmdb-renamer` | Rename and organize movies/shows on the NAS into Plex/Kodi naming, looked up via the TMDB API. |
 | `zibby:webshare-downloader` | Search Webshare.cz/FastShare.cloud for a file and queue it in JDownloader. |
